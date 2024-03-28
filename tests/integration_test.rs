@@ -15,6 +15,7 @@ mod tests {
                     let app = actix_web::test::init_service(
                         actix_web::App::new()
                             .app_data(web::Data::new(rusty_llm::api::AppState {
+                                batch_size: 8,
                                 max_token: 10,
                                 threads: 4,
                             }))
@@ -52,6 +53,7 @@ mod tests {
         let app = actix_web::test::init_service(
             actix_web::App::new()
                 .app_data(web::Data::new(rusty_llm::api::AppState {
+                    batch_size: 8,
                     max_token: 10,
                     threads: 4,
                 }))
@@ -59,7 +61,7 @@ mod tests {
                 .service(rusty_llm::api::query)
                 .service(rusty_llm::api::metrics),
         )
-            .await;
+        .await;
         let req = actix_web::test::TestRequest::post()
             .uri("/query")
             .insert_header(actix_web::http::header::ContentType::json())

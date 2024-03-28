@@ -31,7 +31,7 @@ pub(crate) fn load_model(gguf_path: &path::Path, tok_path: &path::Path) -> Box<d
         model_params,
         llm::load_progress_callback_stdout,
     )
-        .expect("Failed to load model!")) as _
+    .expect("Failed to load model!")) as _
 }
 
 /// Creates a prompt based on the given query and retrieved context and tries to predict some text.
@@ -39,7 +39,8 @@ pub(crate) async fn query_ai(
     query: &str,
     references: Vec<ContextEntry>,
     threads: usize,
-    context_len: usize,
+    batch_size: usize,
+    max_token: usize,
     model: &dyn llm::Model,
 ) -> Vec<String> {
     let mut context = Vec::new();
@@ -59,7 +60,7 @@ pub(crate) async fn query_ai(
     let inference_session_config = llm::InferenceSessionConfig {
         memory_k_type: llm::ModelKVMemoryType::Float16,
         memory_v_type: llm::ModelKVMemoryType::Float16,
-        n_batch: 8,
+        n_batch: batch_size,
         n_threads: threads,
     };
     let mut tokens: Vec<String> = vec![];
@@ -72,7 +73,7 @@ pub(crate) async fn query_ai(
             prompt: llm::Prompt::from(&prompt),
             parameters: &llm::InferenceParameters::default(),
             play_back_previous_tokens: false,
-            maximum_token_count: Some(context_len),
+            maximum_token_count: Some(max_token),
         },
         &mut Default::default(),
         |r| match r {
@@ -130,7 +131,7 @@ mod tests {
             path::Path::new("model/model.gguf"),
             path::Path::new("model/tokenizer.json"),
         );
-        let res = query_ai("Who was Albert Einstein", vec![], 4, 10, model.as_ref()).await;
+        let res = query_ai("Who was Albert Einstein", vec![], 4, 8, 10, model.as_ref()).await;
         assert_eq!(res.len(), 33); // 33 = 10 for result & 23 for prompt.
     }
 }

@@ -49,6 +49,7 @@ This service can be configured through environment variables. The following vari
 | EMBEDDING_MODEL      | Name of the embedding model to user (will be downloaded using HF).    | "BAAI/bge-small-en-v1.5" |
 | HTTP_ADDRESS         | Bind address to use.                                                  | 127.0.0.1:8080           |
 | HTTP_WORKERS         | Number of threads to run with the HTTP server.                        | 2                        |
+| MODEL_BATCH_SIZE     | Batch size to use.                                                    | 8                        |
 | MODEL_GPU_LAYERS     | Number of layers to offload to GPU.                                   | 0                        |
 | MODEL_MAX_TOKEN      | Maximum number of tokens to generate.                                 | 128                      |
 | MODEL_PATH           | Full path to the gguf file of the model.                              | model/model.gguf         |

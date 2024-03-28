@@ -67,6 +67,7 @@ pub async fn load_knowledge(path: &path::Path, db: &surrealdb::Surreal<local::Db
 /// holds some general information for the service.
 #[derive(Clone)]
 pub struct AppState {
+    pub batch_size: usize,
     pub threads: usize,
     pub max_token: usize,
 }
@@ -109,10 +110,11 @@ async fn query(
         &req_body.query,
         context,
         state.threads,
+        state.batch_size,
         state.max_token,
         MODEL.as_ref(),
     )
-        .await;
+    .await;
     REQUEST_RESPONSE_TIME
         .with_label_values(&[])
         .observe(s_0.elapsed().as_secs_f64());
@@ -152,13 +154,14 @@ mod tests {
         let app = actix_web::test::init_service(
             actix_web::App::new()
                 .app_data(web::Data::new(AppState {
+                    batch_size: 8,
                     max_token: 5,
                     threads: 4,
                 }))
                 .app_data(web::Data::new(kv_store.clone()))
                 .service(query),
         )
-            .await;
+        .await;
         let req = actix_web::test::TestRequest::post()
             .uri("/query")
             .insert_header(actix_web::http::header::ContentType::json())
@@ -179,12 +182,13 @@ mod tests {
             actix_web::App::new()
                 .app_data(web::Data::new(AppState {
                     max_token: 5,
+                    batch_size: 8,
                     threads: 4,
                 }))
                 .app_data(web::Data::new(kv_store.clone()))
                 .service(query),
         )
-            .await;
+        .await;
         let req = actix_web::test::TestRequest::post()
             .uri("/query")
             .insert_header(actix_web::http::header::ContentType::json())

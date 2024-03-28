@@ -40,7 +40,7 @@ pub(crate) async fn add_context(
         }
     };
 
-    let vector = match tensor_content.reshape((LENGTH, )) {
+    let vector = match tensor_content.reshape((LENGTH,)) {
         Ok(val) => val.to_vec1().unwrap_or_default(),
         Err(err) => {
             log::error!("Could create vector: {}.", err);
@@ -65,7 +65,7 @@ pub(crate) async fn get_context(
     query: &candle_core::Tensor,
     db: &surrealdb::Surreal<local::Db>,
 ) -> Vec<ContextEntry> {
-    let embeddings: Vec<f32> = match query.reshape((LENGTH, )) {
+    let embeddings: Vec<f32> = match query.reshape((LENGTH,)) {
         Ok(val) => val.to_vec1().unwrap_or_default(),
         Err(err) => {
             log::error!("Could reshape: {}.", err);

@@ -15,7 +15,7 @@ async fn main() -> std::io::Result<()> {
         path::Path::new(&std::env::var("DATA_PATH").unwrap_or("data".to_string())),
         &kv_store,
     )
-        .await;
+    .await;
 
     // parse the environment variables.
     let addr: String = match std::env::var("HTTP_ADDRESS") {
@@ -36,6 +36,12 @@ async fn main() -> std::io::Result<()> {
             .expect("Unable to parse model thread environment variable!"),
         Err(_) => 6,
     };
+    let batch_size: usize = match std::env::var("MODEL_BATCH_SIZE") {
+        Ok(val) => val
+            .parse()
+            .expect("Unable to parse model batch size environment variable!"),
+        Err(_) => 8,
+    };
     let max_token: usize = match std::env::var("MODEL_MAX_TOKEN") {
         Ok(val) => val
             .parse()
@@ -44,7 +50,11 @@ async fn main() -> std::io::Result<()> {
     };
 
     // run the web server.
-    let state = api::AppState { threads, max_token };
+    let state = api::AppState {
+        batch_size,
+        threads,
+        max_token,
+    };
     actix_web::HttpServer::new(move || {
         actix_web::App::new()
             .app_data(web::Data::new(state.clone()))
@@ -52,9 +62,9 @@ async fn main() -> std::io::Result<()> {
             .service(api::query)
             .service(api::metrics)
     })
-        .workers(workers)
-        .bind(addr)
-        .expect("Could not bind to vien address!")
-        .run()
-        .await
+    .workers(workers)
+    .bind(addr)
+    .expect("Could not bind to vien address!")
+    .run()
+    .await
 }
