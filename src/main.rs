@@ -27,7 +27,7 @@ async fn main() -> std::io::Result<()> {
     let workers: usize = match std::env::var("HTTP_WORKERS") {
         Ok(val) => val
             .parse()
-            .expect("Unable to parse port environment variable!"),
+            .expect("Unable to parse number of workers variable!"),
         Err(_) => 2,
     };
     let threads: usize = match std::env::var("MODEL_THREADS") {
@@ -45,7 +45,7 @@ async fn main() -> std::io::Result<()> {
     let max_token: usize = match std::env::var("MODEL_MAX_TOKEN") {
         Ok(val) => val
             .parse()
-            .expect("Unable to parse model context length environment variable!"),
+            .expect("Unable to parse model max token length environment variable!"),
         Err(_) => 128,
     };
 
@@ -64,7 +64,7 @@ async fn main() -> std::io::Result<()> {
     })
     .workers(workers)
     .bind(addr)
-    .expect("Could not bind to vien address!")
+    .expect("Could not bind to given address!")
     .run()
     .await
 }
