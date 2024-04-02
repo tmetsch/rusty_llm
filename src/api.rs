@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use prometheus::Encoder;
 use surrealdb::engine::local;
 
-use crate::{ai, embedding, knowledge, REQUEST_RESPONSE_TIME};
+use crate::{ai, embedding, knowledge, EMBEDDING_TIME, REQUEST_RESPONSE_TIME};
 
 lazy_static! {
     static ref MODEL: Box<dyn llm::Model> = ai::load_model(
@@ -102,10 +102,16 @@ async fn query(
     db: web::Data<surrealdb::Surreal<local::Db>>,
     req_body: web::Json<QueryRequest>,
 ) -> impl actix_web::Responder {
+    let s_0 = time::Instant::now();
+
     let tkn_query = embedding::tokenize(&req_body.query, &EMBEDDING_MODEL.0, &EMBEDDING_MODEL.1);
     let context = knowledge::get_context(&tkn_query, db.get_ref()).await;
+    let s_1 = time::Instant::now();
+    let duration = s_1.duration_since(s_0);
+    EMBEDDING_TIME
+        .with_label_values(&[])
+        .observe(duration.as_secs_f64());
 
-    let s_0 = time::Instant::now();
     let tokens = ai::query_ai(
         &req_body.query,
         context,
@@ -115,9 +121,11 @@ async fn query(
         MODEL.as_ref(),
     )
     .await;
+    let s_2 = time::Instant::now();
+    let duration = s_2.duration_since(s_0);
     REQUEST_RESPONSE_TIME
         .with_label_values(&[])
-        .observe(s_0.elapsed().as_secs_f64());
+        .observe(duration.as_secs_f64());
 
     // TODO: make this a streaming response.
     actix_web::HttpResponse::Ok().json(QueryResponse {

@@ -22,6 +22,8 @@ The following key metrics are exposed through [Prometheus](https://prometheus.io
 * *token_creation_duration* - Histogram for the time it took to generate the tokens.
 * *inference_response_duration* - Histogram for the time it took to generate the full response (includes tokenization 
   and embedding additional context).
+* *embedding_duration* - Histogram for the time it took to create a vector representation of the query and lookup 
+  contextual information in the knowledge base.
 * TODO: add more such as time it took to tokenize, read from KV store etc; also check if we can add tracing. 
 
 Here is an example dashboard that capture the metrics described as well as some host metrics such as power, CPU
