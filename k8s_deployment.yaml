@@ -24,6 +24,8 @@ spec:
           ports:
             - containerPort: 8080
               name: server-port
+            - containerPort: 8081
+              name: prometheus-port
           volumeMounts:
             - name: model-vol
               mountPath: /app/model
