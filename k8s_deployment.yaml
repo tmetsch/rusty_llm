@@ -16,7 +16,7 @@ spec:
       annotations:
         prometheus.io/scrape: 'true'
         prometheus.io/path: '/metrics'
-        prometheus.io/port: '8080'
+        prometheus.io/port: '8081'
     spec:
       containers:
         - name: ai-server
@@ -36,6 +36,8 @@ spec:
               value: "2"
             - name: HTTP_ADDRESS
               value: "0.0.0.0:8080"
+            - name: PROMETHEUS_HTTP_ADDRESS
+              value: "0.0.0.0:8081"
           resources:
             requests:
               cpu: 2

@@ -18,6 +18,12 @@ async fn main() -> std::io::Result<()> {
     .await;
 
     // parse the environment variables.
+    let prom_addr: String = match std::env::var("PROMETHEUS_HTTP_ADDRESS") {
+        Ok(val) => val
+            .parse()
+            .expect("Unable to parse the prometheus bind address environment variable!"),
+        Err(_) => "127.0.0.1:8081".parse().unwrap(),
+    };
     let addr: String = match std::env::var("HTTP_ADDRESS") {
         Ok(val) => val
             .parse()
@@ -28,7 +34,7 @@ async fn main() -> std::io::Result<()> {
         Ok(val) => val
             .parse()
             .expect("Unable to parse number of workers variable!"),
-        Err(_) => 2,
+        Err(_) => 1,
     };
     let threads: usize = match std::env::var("MODEL_THREADS") {
         Ok(val) => val
@@ -49,22 +55,37 @@ async fn main() -> std::io::Result<()> {
         Err(_) => 128,
     };
 
-    // run the web server.
+    // run the web servers.
+    let prom = tokio::spawn(async {
+        actix_web::HttpServer::new(|| actix_web::App::new().service(api::metrics))
+            .workers(1)
+            .bind(prom_addr)
+            .expect("Could not bing to given address!")
+            .run()
+            .await
+    });
+
     let state = api::AppState {
         batch_size,
         threads,
         max_token,
     };
-    actix_web::HttpServer::new(move || {
-        actix_web::App::new()
-            .app_data(web::Data::new(state.clone()))
-            .app_data(web::Data::new(kv_store.clone()))
-            .service(api::query)
-            .service(api::metrics)
-    })
-    .workers(workers)
-    .bind(addr)
-    .expect("Could not bind to given address!")
-    .run()
-    .await
+    let server = tokio::spawn(async move {
+        actix_web::HttpServer::new(move || {
+            actix_web::App::new()
+                .app_data(web::Data::new(state.clone()))
+                .app_data(web::Data::new(kv_store.clone()))
+                .service(api::query)
+        })
+        .workers(workers)
+        .bind(addr)
+        .expect("Could not bind to given address!")
+        .run()
+        .await
+    });
+
+    let _ = prom.await;
+    let _ = server.await;
+
+    Ok(())
 }

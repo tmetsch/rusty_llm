@@ -5,6 +5,7 @@ RUN apt-get install -y build-essential libssl-dev pkg-config
 # If you want clblast support: libclblast-dev
 
 COPY src /app/src
+COPY README.md /app
 COPY Cargo.toml /app
 
 WORKDIR /app
