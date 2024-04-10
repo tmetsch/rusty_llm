@@ -80,9 +80,9 @@ The [Dockerfile](Dockerfile) to build the image is best used on a machine with t
 as it uses *target-cpu=native* flag. Note that is also can optionally also include options to build with CLBlast for 
 GPU support.
 
-Use the following example manifest to deploy this application:
+Use the following [example manifest](k8s_deployment.yaml) to deploy this application:
 
-    kubectl apply -f chat_deployment.yaml
+    kubectl apply -f k8s_deployment.yaml
 
 ***Note***: make sure to adapt the docker image & paths - the manifest above uses hostPaths!
 
