@@ -1,4 +1,4 @@
-FROM rust:1.76.0-slim-bookworm as build
+FROM rust:1.79.0-slim-bookworm as build
 
 RUN apt-get update
 RUN apt-get install -y build-essential libssl-dev pkg-config
