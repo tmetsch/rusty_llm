@@ -5,7 +5,7 @@ This repository contains all code to run a super simple AI LLM model - such as [
 best model to run locally - for inference; it includes simple RAG functionalities. Most importantly it exposes metrics 
 about how long it took to create a response, as well as how long it took to generate the tokens.
 
-Currently, uses [LLM](https://github.com/rustformers/llm) and [candle](https://github.com/huggingface/candle) - 
+Currently, uses [llama_cpp](https://github.com/edgenai/llama_cpp-rs) and [candle](https://github.com/huggingface/candle) - 
 although I hope to replace the latter over time for performance reasons. 
 
 ![rusting llama being observed in mistral winds.](misc/inspecting_rusting_llama_in_mistral_wind.png)
@@ -55,7 +55,6 @@ This service can be configured through environment variables. The following vari
 | MODEL_GPU_LAYERS        | Number of layers to offload to GPU.                                   | 0                        |
 | MODEL_MAX_TOKEN         | Maximum number of tokens to generate.                                 | 128                      |
 | MODEL_PATH              | Full path to the gguf file of the model.                              | model/model.gguf         |
-| MODEL_TOKENIZER         | Full path to the json tokenizer file.                                 | model/tokenizer.json     |
 | MODEL_THREADS           | Number of threads we'll use for inference.                            | 6                        |
 | PROMETHEUS_HTTP_ADDRESS | Bind address to use for prometheus.                                   | 127.0.0.1:8081           |
 
@@ -85,6 +84,11 @@ Use the following [example manifest](k8s_deployment.yaml) to deploy this applica
     kubectl apply -f k8s_deployment.yaml
 
 ***Note***: make sure to adapt the docker image & paths - the manifest above uses hostPaths!
+
+## Changelog
+
+  * 0.1.0 - initial release.
+  * 0.2.0 - switch from [llama_cpp](https://github.com/edgenai/llama_cpp-rs) as [llm](https://github.com/rustformers/llm) stopped development.
 
 ## Further reading
 

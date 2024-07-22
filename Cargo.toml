@@ -1,17 +1,17 @@
 [package]
 name = "rusty_llm"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-actix-web = { version = "4.8.0" }
+actix-web = { version = "4.8.0"}
 candle-core = { version = "0.6.0" }
 candle-nn = { version = "0.6.0" }
 candle-transformers = { version = "0.6.0" }
 env_logger = { version = "0.11.3" }
 hf-hub = { version = "0.3.2" }
 lazy_static = { version = "1.4.0" }
-llm = { git = "https://github.com/rustformers/llm", branch = "gguf" } # , features = ["clblast"]
+llama_cpp = { version="0.3.2", features = ["clblast"]}
 log = { version = "0.4.22" }
 prometheus = { version = "0.13.4" }
 rand = { version = "0.8.5" }

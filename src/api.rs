@@ -10,12 +10,8 @@ use surrealdb::engine::local;
 use crate::{ai, embedding, knowledge, EMBEDDING_TIME, REQUEST_RESPONSE_TIME};
 
 lazy_static! {
-    static ref MODEL: Box<dyn llm::Model> = ai::load_model(
-        path::Path::new(&std::env::var("MODEL_PATH").unwrap_or("model/model.gguf".to_string())),
-        path::Path::new(
-            &std::env::var("TOKENIZER_PATH").unwrap_or("model/tokenizer.json".to_string())
-        )
-    );
+    static ref MODEL: llama_cpp::LlamaModel =
+        ai::load_model(&std::env::var("MODEL_PATH").unwrap_or("model/model.gguf".to_string()),);
     static ref EMBEDDING_MODEL: (bert::BertModel, tokenizers::Tokenizer) =
         embedding::get_embedding_model(
             &std::env::var("EMBEDDING_MODEL").unwrap_or("BAAI/bge-small-en-v1.5".to_string())
@@ -67,8 +63,8 @@ pub async fn load_knowledge(path: &path::Path, db: &surrealdb::Surreal<local::Db
 /// holds some general information for the service.
 #[derive(Clone)]
 pub struct AppState {
-    pub batch_size: usize,
-    pub threads: usize,
+    pub batch_size: u32,
+    pub threads: u32,
     pub max_token: usize,
 }
 
@@ -112,13 +108,13 @@ async fn query(
         .with_label_values(&[])
         .observe(duration.as_secs_f64());
 
-    let tokens = ai::query_ai(
+    let res = ai::query_ai(
         &req_body.query,
         context,
         state.threads,
         state.batch_size,
         state.max_token,
-        MODEL.as_ref(),
+        &MODEL,
     )
     .await;
     let s_2 = time::Instant::now();
@@ -128,9 +124,7 @@ async fn query(
         .observe(duration.as_secs_f64());
 
     // TODO: make this a streaming response.
-    actix_web::HttpResponse::Ok().json(QueryResponse {
-        response: tokens.join(""),
-    })
+    actix_web::HttpResponse::Ok().json(QueryResponse { response: res.1 })
 }
 
 #[cfg(test)]

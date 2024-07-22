@@ -36,13 +36,13 @@ async fn main() -> std::io::Result<()> {
             .expect("Unable to parse number of workers variable!"),
         Err(_) => 1,
     };
-    let threads: usize = match std::env::var("MODEL_THREADS") {
+    let threads: u32 = match std::env::var("MODEL_THREADS") {
         Ok(val) => val
             .parse()
             .expect("Unable to parse model thread environment variable!"),
         Err(_) => 6,
     };
-    let batch_size: usize = match std::env::var("MODEL_BATCH_SIZE") {
+    let batch_size: u32 = match std::env::var("MODEL_BATCH_SIZE") {
         Ok(val) => val
             .parse()
             .expect("Unable to parse model batch size environment variable!"),
