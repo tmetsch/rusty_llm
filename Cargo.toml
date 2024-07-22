@@ -4,22 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-actix-web = { version = "4.5.1" }
-candle-core = { version = "0.4.1" }
-candle-nn = { version = "0.4.1" }
-candle-transformers = { version = "0.4.1" }
+actix-web = { version = "4.8.0" }
+candle-core = { version = "0.6.0" }
+candle-nn = { version = "0.6.0" }
+candle-transformers = { version = "0.6.0" }
 env_logger = { version = "0.11.3" }
 hf-hub = { version = "0.3.2" }
 lazy_static = { version = "1.4.0" }
 llm = { git = "https://github.com/rustformers/llm", branch = "gguf" } # , features = ["clblast"]
-log = { version = "0.4.21" }
-prometheus = { version = "0.13.3" }
+log = { version = "0.4.22" }
+prometheus = { version = "0.13.4" }
 rand = { version = "0.8.5" }
-serde_json = { version = "1.0.114" }
-serde = { version = "1.0.197", features = ["derive"] }
-surrealdb = { version = "1.2.2", features = ["kv-mem"] }
-tokenizers = { version = "0.15.2" }
-tokio = { version = "1.36.0" }
+serde_json = { version = "1.0.120" }
+serde = { version = "1.0.204", features = ["derive"] }
+surrealdb = { version = "1.5.4", features = ["kv-mem"] }
+tokenizers = { version = "0.19.1" }
+tokio = { version = "1.38.1" }
 
 [lib]
 name = "rusty_llm"
