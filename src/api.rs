@@ -48,7 +48,7 @@ pub async fn load_knowledge(path: &path::Path, db: &surrealdb::Surreal<local::Db
             match contents {
                 Ok(data) => {
                     let tkn_context =
-                        embedding::tokenize(&data, &EMBEDDING_MODEL.0, &EMBEDDING_MODEL.1);
+                        embedding::embed(&data, &EMBEDDING_MODEL.0, &EMBEDDING_MODEL.1);
                     knowledge::add_context(&data, &tkn_context, db).await;
                 }
                 Err(err) => {
@@ -100,7 +100,7 @@ async fn query(
 ) -> impl actix_web::Responder {
     let s_0 = time::Instant::now();
 
-    let tkn_query = embedding::tokenize(&req_body.query, &EMBEDDING_MODEL.0, &EMBEDDING_MODEL.1);
+    let tkn_query = embedding::embed(&req_body.query, &EMBEDDING_MODEL.0, &EMBEDDING_MODEL.1);
     let context = knowledge::get_context(&tkn_query, db.get_ref()).await;
     let s_1 = time::Instant::now();
     let duration = s_1.duration_since(s_0);

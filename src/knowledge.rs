@@ -96,7 +96,7 @@ pub(crate) async fn get_context(
 
 #[cfg(test)]
 mod tests {
-    use crate::embedding::{get_embedding_model, tokenize};
+    use crate::embedding::{get_embedding_model, embed};
 
     use super::*;
 
@@ -104,7 +104,7 @@ mod tests {
     async fn test_add_content_for_success() {
         let text = "hello";
         let (model, tokenizer) = get_embedding_model("BAAI/bge-small-en-v1.5");
-        let tokens = tokenize(text, &model, &tokenizer);
+        let tokens = embed(text, &model, &tokenizer);
         let db = get_db().await;
         add_context(text, &tokens, &db).await;
     }
@@ -113,7 +113,7 @@ mod tests {
     async fn test_get_content_for_success() {
         let text = "hello";
         let (model, tokenizer) = get_embedding_model("BAAI/bge-small-en-v1.5");
-        let tokens = tokenize(text, &model, &tokenizer);
+        let tokens = embed(text, &model, &tokenizer);
         let db = get_db().await;
         add_context(text, &tokens, &db).await;
         let tmp = get_context(&tokens, &db).await;
@@ -130,20 +130,20 @@ mod tests {
         let (model, tokenizer) = get_embedding_model("BAAI/bge-small-en-v1.5");
 
         for val in vec![albert, thomas, johan] {
-            let tokens = tokenize(val, &model, &tokenizer);
+            let tokens = embed(val, &model, &tokenizer);
             add_context(val, &tokens, &db).await;
         }
 
         // test single return...
         let query = "Who was Johan Oldenbarneveld?";
-        let query_tokens = tokenize(query, &model, &tokenizer);
+        let query_tokens = embed(query, &model, &tokenizer);
         let tmp = get_context(&query_tokens, &db).await;
         assert_eq!(tmp.len(), 1);
         assert_eq!(tmp[0].content, johan);
 
         // test double return...
         let query = "Who was Thomas Jefferson?";
-        let query_tokens = tokenize(query, &model, &tokenizer);
+        let query_tokens = embed(query, &model, &tokenizer);
         let tmp = get_context(&query_tokens, &db).await;
         assert_eq!(tmp.len(), 2);
         for item in &tmp {
@@ -152,7 +152,7 @@ mod tests {
 
         // empty result...
         let query = "Who was Frans Hals?";
-        let query_tokens = tokenize(query, &model, &tokenizer);
+        let query_tokens = embed(query, &model, &tokenizer);
         let tmp = get_context(&query_tokens, &db).await;
         assert_eq!(tmp.len(), 0);
     }

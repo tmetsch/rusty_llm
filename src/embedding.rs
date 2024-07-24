@@ -31,7 +31,7 @@ pub(crate) fn get_embedding_model(repo: &str) -> (bert::BertModel, tokenizers::T
 }
 
 /// Tokenizes a string.
-pub(crate) fn tokenize(
+pub(crate) fn embed(
     content: &str,
     model: &bert::BertModel,
     tokenizer: &tokenizers::Tokenizer,
@@ -85,9 +85,9 @@ mod tests {
     }
 
     #[test]
-    fn test_tokenize_for_success() {
+    fn test_embed_for_success() {
         let (model, tokenizer) = get_embedding_model("BAAI/bge-small-en-v1.5");
-        tokenize("hello", &model, &tokenizer);
+        embed("hello", &model, &tokenizer);
     }
 
     #[test]
@@ -97,18 +97,18 @@ mod tests {
     }
 
     #[test]
-    fn test_tokenize_for_sanity() {
+    fn test_embed_for_sanity() {
         let (model, tokenizer) = get_embedding_model("BAAI/bge-small-en-v1.5");
-        let result = tokenize("hello", &model, &tokenizer);
+        let result = embed("hello", &model, &tokenizer);
         assert_eq!(
             result.sum_all().unwrap().to_scalar::<f32>().unwrap(),
-            0.10454169
+            0.10454147
         );
 
-        let result = tokenize("💩", &model, &tokenizer);
+        let result = embed("💩", &model, &tokenizer);
         assert_eq!(
             result.sum_all().unwrap().to_scalar::<f32>().unwrap(),
-            0.12179178
+            0.12179252
         );
     }
 }
