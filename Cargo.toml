@@ -11,10 +11,9 @@ candle-transformers = { version = "0.6.0" }
 env_logger = { version = "0.11.3" }
 hf-hub = { version = "0.3.2" }
 lazy_static = { version = "1.4.0" }
-llama_cpp = { version="0.3.2", features = ["clblast"]}
+llama_cpp = { version="0.3.2", features = ["clblast"]}  # usin OpenCL for GPU offload is suboptimal as this only offloads the matrix multiplications atm.
 log = { version = "0.4.22" }
 prometheus = { version = "0.13.4" }
-rand = { version = "0.8.5" }
 serde_json = { version = "1.0.120" }
 serde = { version = "1.0.204", features = ["derive"] }
 surrealdb = { version = "1.5.4", features = ["kv-mem"] }

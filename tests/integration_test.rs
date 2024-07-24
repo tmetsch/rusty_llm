@@ -40,12 +40,12 @@ mod tests {
         }
     }
 
-    // tune a simple test - will not trigger adding knowledge.
-    test_query_request!(simple_query_test, "Who was Albert Einstein?", 200, 120);
-    // this will trigger adding context, hence prompt should be longer.
-    test_query_request!(simple_rag_query_test, "Who was Thom Rhubarb?", 200, 700);
+    // run a simple test - will not trigger adding knowledge...
+    test_query_request!(simple_query_test, "Who was Albert Einstein?", 200, 40);
+    // this will trigger adding context.
+    test_query_request!(simple_rag_query_test, "Who was Thom Rhubarb?", 200, 40);
     // make sure this doesn't break anything.
-    test_query_request!(empty_request, "", 200, 100);
+    test_query_request!(empty_request, "", 200, 40);
 
     #[actix_web::test]
     async fn test_if_observability_works_example() {
