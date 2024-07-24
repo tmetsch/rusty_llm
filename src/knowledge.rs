@@ -96,7 +96,7 @@ pub(crate) async fn get_context(
 
 #[cfg(test)]
 mod tests {
-    use crate::embedding::{get_embedding_model, embed};
+    use crate::embedding::{embed, get_embedding_model};
 
     use super::*;
 
