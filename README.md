@@ -5,8 +5,7 @@ This repository contains all code to run a super simple AI LLM model - such as [
 best model to run locally - for inference; it includes simple RAG functionalities. Most importantly it exposes metrics 
 about how long it took to create a response, as well as how long it took to generate the tokens.
 
-Currently, uses [llama_cpp](https://github.com/edgenai/llama_cpp-rs) and [candle](https://github.com/huggingface/candle) - 
-although I hope to replace the latter over time for performance reasons. 
+Currently, uses [llama_cpp](https://github.com/edgenai/llama_cpp-rs). 
 
 ![rusting llama being observed in mistral winds.](misc/inspecting_rusting_llama_in_mistral_wind.png)
 
@@ -33,11 +32,12 @@ utilisation etc.:
 
 ## Prerequisites
 
-You will need to download a model & matching tokenizer file:
+You will need to download a model and embedding model:
 
   * This [mistral-7b-instruct-v0.2.Q4_K_M.gguf](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/tree/main) 
     model seems to give reasonable good results.
-  * This [tokenizer.json](https://huggingface.co/mistralai/Mistral-7B-v0.1/blob/main/tokenizer.json) works as well.
+  * This [bge-base-en-v1.5.Q8_0.gguf](https://huggingface.co/ChristianAzinn/bge-base-en-v1.5-gguf/tree/main) 
+    embedding model seem to work as well.
 
 Best to put both files into a *model/* folder as *model.gguf* and *tokenizer.json*.
 
@@ -45,18 +45,18 @@ Best to put both files into a *model/* folder as *model.gguf* and *tokenizer.jso
 
 This service can be configured through environment variables. The following variables are supported:
 
-| Environment variable    | Description                                                           | Example/Default          |
-|-------------------------|-----------------------------------------------------------------------|--------------------------|
-| DATA_PATH               | Directory path from which to read text files into the knowledge base. | data                     |
-| EMBEDDING_MODEL         | Name of the embedding model to user (will be downloaded using HF).    | "BAAI/bge-small-en-v1.5" |
-| HTTP_ADDRESS            | Bind address to use.                                                  | 127.0.0.1:8080           |
-| HTTP_WORKERS            | Number of threads to run with the HTTP server.                        | 1                        |
-| MODEL_BATCH_SIZE        | Batch size to use.                                                    | 8                        |
-| MODEL_GPU_LAYERS        | Number of layers to offload to GPU.                                   | 0                        |
-| MODEL_MAX_TOKEN         | Maximum number of tokens to generate.                                 | 128                      |
-| MODEL_PATH              | Full path to the gguf file of the model.                              | model/model.gguf         |
-| MODEL_THREADS           | Number of threads we'll use for inference.                            | 6                        |
-| PROMETHEUS_HTTP_ADDRESS | Bind address to use for prometheus.                                   | 127.0.0.1:8081           |
+| Environment variable    | Description                                                           | Example/Default   |
+|-------------------------|-----------------------------------------------------------------------|-------------------|
+| DATA_PATH               | Directory path from which to read text files into the knowledge base. | data              |
+| EMBEDDING_MODEL         | Full path of the embedding model to use.                              | model/embed.gguf  |
+| HTTP_ADDRESS            | Bind address to use.                                                  | 127.0.0.1:8080    |
+| HTTP_WORKERS            | Number of threads to run with the HTTP server.                        | 1                 |
+| MODEL_BATCH_SIZE        | Batch size to use.                                                    | 8                 |
+| MODEL_GPU_LAYERS        | Number of layers to offload to GPU.                                   | 0                 |
+| MODEL_MAX_TOKEN         | Maximum number of tokens to generate.                                 | 128               |
+| MODEL_PATH              | Full path to the gguf file of the model.                              | model/model.gguf  |
+| MODEL_THREADS           | Number of threads we'll use for inference.                            | 6                 |
+| PROMETHEUS_HTTP_ADDRESS | Bind address to use for prometheus.                                   | 127.0.0.1:8081    |
 
 Other environment variables such as RUST_LOG can also be used.
 

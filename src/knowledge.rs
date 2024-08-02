@@ -1,9 +1,6 @@
 use surrealdb::engine::local;
 use surrealdb::sql;
 
-/// Bert model has a dimension of 384.
-const LENGTH: usize = 384;
-
 /// Represent an entry in the knowledge base.
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(crate) struct ContextEntry {
@@ -28,7 +25,7 @@ pub async fn get_db() -> surrealdb::Surreal<local::Db> {
 /// Adds content to the knowledge base.
 pub(crate) async fn add_context(
     content: &str,
-    tensor_content: &candle_core::Tensor,
+    vector: Vec<f32>,
     db: &surrealdb::Surreal<local::Db>,
 ) {
     let id = sql::Uuid::new_v4().0.to_string().replace('-', "");
@@ -36,14 +33,6 @@ pub(crate) async fn add_context(
         Ok(id) => id,
         Err(err) => {
             log::error!("Could not create unique id: {}.", err);
-            return;
-        }
-    };
-
-    let vector = match tensor_content.reshape((LENGTH,)) {
-        Ok(val) => val.to_vec1().unwrap_or_default(),
-        Err(err) => {
-            log::error!("Could create vector: {}.", err);
             return;
         }
     };
@@ -62,17 +51,9 @@ pub(crate) async fn add_context(
 
 /// Retrieves a limit number of entries from the knowledge base if the cosine similarity score is above a threshold.
 pub(crate) async fn get_context(
-    query: &candle_core::Tensor,
+    query: Vec<f32>,
     db: &surrealdb::Surreal<local::Db>,
 ) -> Vec<ContextEntry> {
-    let embeddings: Vec<f32> = match query.reshape((LENGTH,)) {
-        Ok(val) => val.to_vec1().unwrap_or_default(),
-        Err(err) => {
-            log::error!("Could reshape: {}.", err);
-            return vec![];
-        }
-    };
-
     let mut result = match db
         .query(
             "SELECT *, vector::similarity::cosine(vector, $query) AS score \
@@ -80,8 +61,8 @@ pub(crate) async fn get_context(
         WHERE vector::similarity::cosine(vector, $query) > 0.5 \
         ORDER BY score DESC \
         LIMIT 3",
-        ) //
-        .bind(("query", embeddings))
+        )
+        .bind(("query", query))
         .await
     {
         Ok(res) => res,
@@ -103,20 +84,20 @@ mod tests {
     #[actix_web::test]
     async fn test_add_content_for_success() {
         let text = "hello";
-        let (model, tokenizer) = get_embedding_model("BAAI/bge-small-en-v1.5");
-        let tokens = embed(text, &model, &tokenizer);
+        let model = get_embedding_model("model/embed.gguf");
+        let tokens = embed(text, &model);
         let db = get_db().await;
-        add_context(text, &tokens, &db).await;
+        add_context(text, tokens, &db).await;
     }
 
     #[actix_web::test]
     async fn test_get_content_for_success() {
         let text = "hello";
-        let (model, tokenizer) = get_embedding_model("BAAI/bge-small-en-v1.5");
-        let tokens = embed(text, &model, &tokenizer);
+        let model = get_embedding_model("model/embed.gguf");
+        let tokens = embed(text, &model);
         let db = get_db().await;
-        add_context(text, &tokens, &db).await;
-        let tmp = get_context(&tokens, &db).await;
+        add_context(text, tokens.clone(), &db).await;
+        let tmp = get_context(tokens, &db).await;
         assert_eq!(tmp.len(), 1)
     }
 
@@ -127,33 +108,33 @@ mod tests {
         let johan = "Johan van Oldenbarnevelt founded the Dutch East India Company.";
 
         let db = get_db().await;
-        let (model, tokenizer) = get_embedding_model("BAAI/bge-small-en-v1.5");
+        let model = get_embedding_model("model/embed.gguf");
 
         for val in vec![albert, thomas, johan] {
-            let tokens = embed(val, &model, &tokenizer);
-            add_context(val, &tokens, &db).await;
+            let tokens = embed(val, &model);
+            add_context(val, tokens, &db).await;
         }
 
         // test single return...
         let query = "Who was Johan Oldenbarneveld?";
-        let query_tokens = embed(query, &model, &tokenizer);
-        let tmp = get_context(&query_tokens, &db).await;
+        let query_tokens = embed(query, &model);
+        let tmp = get_context(query_tokens, &db).await;
         assert_eq!(tmp.len(), 1);
         assert_eq!(tmp[0].content, johan);
 
         // test double return...
         let query = "Who was Thomas Jefferson?";
-        let query_tokens = embed(query, &model, &tokenizer);
-        let tmp = get_context(&query_tokens, &db).await;
+        let query_tokens = embed(query, &model);
+        let tmp = get_context(query_tokens, &db).await;
         assert_eq!(tmp.len(), 2);
         for item in &tmp {
             assert_ne!(item.content, johan)
         }
 
         // empty result...
-        let query = "Who was Frans Hals?";
-        let query_tokens = embed(query, &model, &tokenizer);
-        let tmp = get_context(&query_tokens, &db).await;
+        let query = "Who was the painter Frans Hals?";
+        let query_tokens = embed(query, &model);
+        let tmp = get_context(query_tokens, &db).await;
         assert_eq!(tmp.len(), 0);
     }
 }

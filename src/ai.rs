@@ -69,7 +69,7 @@ pub(crate) async fn query_ai(
         TOKEN_RESPONSE_TIME
             .with_label_values(&[])
             .observe(duration.as_secs_f64());
-        log::info!("Token took: {}", duration.as_secs_f64());
+        log::info!("Token took: {}s.", duration.as_secs_f64());
         s_0 = s_1;
     }
 

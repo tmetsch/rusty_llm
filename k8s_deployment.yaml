@@ -31,8 +31,6 @@ spec:
               mountPath: /app/model
             - name: data-vol
               mountPath: /app/data
-            - name: hf-cache-vol
-              mountPath: /root/.cache/huggingface
           env:
             - name: MODEL_THREADS
               value: "2"
@@ -54,9 +52,6 @@ spec:
       - name: data-vol
         hostPath:
           path: /home/tmetsch/data
-      - name: hf-cache-vol
-        hostPath:
-          path: /home/tmetsch/hf_cache
       restartPolicy: Always
 ---
 apiVersion: v1

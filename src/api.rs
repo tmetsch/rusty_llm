@@ -2,7 +2,6 @@ use std::path;
 use std::time;
 
 use actix_web::web;
-use candle_transformers::models::bert;
 use lazy_static::lazy_static;
 use prometheus::Encoder;
 use surrealdb::engine::local;
@@ -12,10 +11,9 @@ use crate::{ai, embedding, knowledge, EMBEDDING_TIME, REQUEST_RESPONSE_TIME};
 lazy_static! {
     static ref MODEL: llama_cpp::LlamaModel =
         ai::load_model(&std::env::var("MODEL_PATH").unwrap_or("model/model.gguf".to_string()),);
-    static ref EMBEDDING_MODEL: (bert::BertModel, tokenizers::Tokenizer) =
-        embedding::get_embedding_model(
-            &std::env::var("EMBEDDING_MODEL").unwrap_or("BAAI/bge-small-en-v1.5".to_string())
-        );
+    static ref EMBEDDING_MODEL: llama_cpp::LlamaModel = embedding::get_embedding_model(
+        &std::env::var("EMBEDDING_MODEL").unwrap_or("model/embed.gguf".to_string())
+    );
 }
 
 /// Loads knowledge from a set of text files into an in-memory KV-store.
@@ -47,9 +45,8 @@ pub async fn load_knowledge(path: &path::Path, db: &surrealdb::Surreal<local::Db
             // Use a match statement to handle the result
             match contents {
                 Ok(data) => {
-                    let tkn_context =
-                        embedding::embed(&data, &EMBEDDING_MODEL.0, &EMBEDDING_MODEL.1);
-                    knowledge::add_context(&data, &tkn_context, db).await;
+                    let tkn_context = embedding::embed(&data, &EMBEDDING_MODEL);
+                    knowledge::add_context(&data, tkn_context, db).await;
                 }
                 Err(err) => {
                     log::error!("Could not read file {}.", err);
@@ -98,10 +95,15 @@ async fn query(
     db: web::Data<surrealdb::Surreal<local::Db>>,
     req_body: web::Json<QueryRequest>,
 ) -> impl actix_web::Responder {
-    let s_0 = time::Instant::now();
+    if req_body.query.is_empty() {
+        return actix_web::HttpResponse::Ok().json(QueryResponse {
+            response: "Empty query - not triggering LLM model.".to_string(),
+        });
+    }
 
-    let tkn_query = embedding::embed(&req_body.query, &EMBEDDING_MODEL.0, &EMBEDDING_MODEL.1);
-    let context = knowledge::get_context(&tkn_query, db.get_ref()).await;
+    let s_0 = time::Instant::now();
+    let tkn_query = embedding::embed(&req_body.query, &EMBEDDING_MODEL);
+    let context = knowledge::get_context(tkn_query, db.get_ref()).await;
     let s_1 = time::Instant::now();
     let duration = s_1.duration_since(s_0);
     EMBEDDING_TIME
