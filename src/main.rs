@@ -10,10 +10,10 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     // set up the in-memory KV-store & load some knowledge.
-    let kv_store = rusty_llm::knowledge::get_db().await;
+    let mut kv_store = rusty_llm::knowledge::get_db().await;
     api::load_knowledge(
         path::Path::new(&std::env::var("DATA_PATH").unwrap_or("data".to_string())),
-        &kv_store,
+        &mut kv_store,
     )
     .await;
 

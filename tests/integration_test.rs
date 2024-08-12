@@ -10,8 +10,8 @@ mod tests {
             #[actix_web::test]
             async fn $name() {
                 $(
-                    let kv_store = rusty_llm::knowledge::get_db().await;
-                    rusty_llm::api::load_knowledge(std::path::Path::new("data/"), &kv_store).await;
+                    let mut kv_store = rusty_llm::knowledge::get_db().await;
+                    rusty_llm::api::load_knowledge(std::path::Path::new("data/"), &mut kv_store).await;
                     let app = actix_web::test::init_service(
                         actix_web::App::new()
                             .app_data(web::Data::new(rusty_llm::api::AppState {

@@ -1,93 +1,98 @@
-use surrealdb::engine::local;
-use surrealdb::sql;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 
-/// Represent an entry in the knowledge base.
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
-pub(crate) struct ContextEntry {
-    pub id: sql::Thing,
-    pub content: String,
-    pub vector: Vec<f32>,
-    pub created_at: sql::Datetime,
+/// Defines the minimum threshold for the cosine similarity search.
+const THRESHOLD: f32 = 0.5;
+
+/// Limits the number of entries we return from the knowledge base.
+const MAX_ENTRIES: usize = 3;
+
+/// Represents an entry in the priority queue we use when searching for relevant information.
+#[derive(PartialEq)]
+struct SimilarityContext<'a> {
+    similarity: f32,
+    content: &'a str,
 }
 
-/// Returns a handle to the in memory database (will panic if it doesn't work; no db --> no chance of all of this to work).
-pub async fn get_db() -> surrealdb::Surreal<local::Db> {
-    let db = surrealdb::Surreal::new::<local::Mem>(())
-        .await
-        .expect("Could not initialize the surreal db...");
-    db.use_ns("rag")
-        .use_db("content")
-        .await
-        .expect("Could not set the ns and db.");
-    db
+impl<'a> Eq for SimilarityContext<'a> {}
+
+impl<'a> Ord for SimilarityContext<'a> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Reverse the order so the BinaryHeap becomes a min-heap
+        other.similarity.partial_cmp(&self.similarity).unwrap_or(Ordering::Equal)
+    }
 }
 
-/// Adds content to the knowledge base.
-pub(crate) async fn add_context(
-    content: &str,
-    vector: Vec<f32>,
-    db: &surrealdb::Surreal<local::Db>,
-) {
-    let id = sql::Uuid::new_v4().0.to_string().replace('-', "");
-    let id = match sql::thing(format!("vector_index:{}", id).as_str()) {
-        Ok(id) => id,
-        Err(err) => {
-            log::error!("Could not create unique id: {}.", err);
-            return;
+impl<'a> PartialOrd for SimilarityContext<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Holds the actual knowledge.
+#[derive(Clone)]
+pub struct KnowledgeBase {
+    data: Vec<(String, Vec<f32>)>,
+}
+
+/// Returns a knowledge base.
+pub async fn get_db() -> KnowledgeBase {
+    KnowledgeBase { data: Vec::new() }
+}
+
+/// Calculates the cosine similarity between two vectors.
+fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    let dot_product = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f32>();
+    let magnitude_a = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let magnitude_b = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+    dot_product / (magnitude_a * magnitude_b).max(1e-10)
+}
+
+/// Adds context to the knowledge base.
+pub(crate) async fn add_context(content: &str, embedding: Vec<f32>, db: &mut KnowledgeBase) {
+    db.data.push((content.to_string(), embedding));
+}
+
+/// Retrieves context relevant to the given embedding.
+pub(crate) async fn get_context(embedding: Vec<f32>, db: &KnowledgeBase) -> Vec<String> {
+    if db.data.is_empty() {
+        return Vec::new();
+    }
+
+    // Calculate similarities between input embedding and all stored embeddings
+    let mut heap = BinaryHeap::with_capacity(MAX_ENTRIES + 1);
+
+    for (content, existing_embedding) in &db.data {
+        let similarity = cosine_similarity(&embedding, existing_embedding);
+        if similarity >= THRESHOLD {
+            heap.push(SimilarityContext {
+                similarity,
+                content,
+            });
+            if heap.len() > MAX_ENTRIES {
+                heap.pop(); // Maintain the heap size to MAX_ENTRIES
+            }
         }
-    };
+    }
 
-    let _vector_index: Option<ContextEntry> = db
-        .create(("vector_index", id.clone()))
-        .content(ContextEntry {
-            id: id.clone(),
-            content: content.to_string(),
-            vector,
-            created_at: sql::Datetime::default(),
-        })
-        .await
-        .expect("Unable to insert new content!");
-}
-
-/// Retrieves a limit number of entries from the knowledge base if the cosine similarity score is above a threshold.
-pub(crate) async fn get_context(
-    query: Vec<f32>,
-    db: &surrealdb::Surreal<local::Db>,
-) -> Vec<ContextEntry> {
-    let mut result = match db
-        .query(
-            "SELECT *, vector::similarity::cosine(vector, $query) AS score \
-        FROM vector_index \
-        WHERE vector::similarity::cosine(vector, $query) > 0.5 \
-        ORDER BY score DESC \
-        LIMIT 3",
-        )
-        .bind(("query", query))
-        .await
-    {
-        Ok(res) => res,
-        Err(err) => {
-            log::error!("Could not run the query: {};", err);
-            return vec![];
-        }
-    };
-    let vector_indexes: Vec<ContextEntry> = result.take(0).expect("This should not fail!");
-    vector_indexes
+    // Return the heap as a sorted vector.
+    heap.into_sorted_vec()
+        .into_iter()
+        .map(|sc| sc.content.to_string())
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::embedding::{embed, get_embedding_model};
-
     use super::*;
+    use crate::embedding::{embed, get_embedding_model};
 
     #[actix_web::test]
     async fn test_add_content_for_success() {
         let text = "hello";
-        let model = get_embedding_model("model/embed.gguf");
-        let tokens = embed(text, &model);
-        let db = get_db().await;
-        add_context(text, tokens, &db).await;
+        let tokens = Vec::new();
+        let mut db = get_db().await;
+        add_context(text, tokens, &mut db).await;
     }
 
     #[actix_web::test]
@@ -95,8 +100,8 @@ mod tests {
         let text = "hello";
         let model = get_embedding_model("model/embed.gguf");
         let tokens = embed(text, &model);
-        let db = get_db().await;
-        add_context(text, tokens.clone(), &db).await;
+        let mut db = get_db().await;
+        add_context(text, tokens.clone(), &mut db).await;
         let tmp = get_context(tokens, &db).await;
         assert_eq!(tmp.len(), 1)
     }
@@ -107,12 +112,12 @@ mod tests {
         let thomas = "Thomas Jefferson was the third president of the United States.";
         let johan = "Johan van Oldenbarnevelt founded the Dutch East India Company.";
 
-        let db = get_db().await;
+        let mut db = get_db().await;
         let model = get_embedding_model("model/embed.gguf");
 
-        for val in vec![albert, thomas, johan] {
+        for val in &[albert, thomas, johan] {
             let tokens = embed(val, &model);
-            add_context(val, tokens, &db).await;
+            add_context(val, tokens, &mut db).await;
         }
 
         // test single return...
@@ -120,7 +125,7 @@ mod tests {
         let query_tokens = embed(query, &model);
         let tmp = get_context(query_tokens, &db).await;
         assert_eq!(tmp.len(), 1);
-        assert_eq!(tmp[0].content, johan);
+        assert_eq!(tmp[0], johan);
 
         // test double return...
         let query = "Who was Thomas Jefferson?";
@@ -128,7 +133,7 @@ mod tests {
         let tmp = get_context(query_tokens, &db).await;
         assert_eq!(tmp.len(), 2);
         for item in &tmp {
-            assert_ne!(item.content, johan)
+            assert_ne!(item, johan)
         }
 
         // empty result...

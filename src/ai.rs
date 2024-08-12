@@ -1,4 +1,3 @@
-use crate::knowledge::ContextEntry;
 use crate::TOKEN_RESPONSE_TIME;
 use std::time;
 
@@ -20,7 +19,7 @@ pub(crate) fn load_model(gguf_path: &str) -> llama_cpp::LlamaModel {
 /// Creates a prompt based on the given query and retrieved context and tries to predict some text.
 pub(crate) async fn query_ai(
     query: &str,
-    references: Vec<ContextEntry>,
+    references: Vec<String>,
     threads: u32,
     batch_size: u32,
     max_token: usize,
@@ -28,7 +27,7 @@ pub(crate) async fn query_ai(
 ) -> (usize, String) {
     let mut context = Vec::new();
     for reference in references.clone() {
-        context.push(serde_json::json!({"content": reference.content}))
+        context.push(serde_json::json!({"content": reference}))
     }
     let context = serde_json::json!(context).to_string();
 

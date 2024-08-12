@@ -4,7 +4,6 @@ use std::time;
 use actix_web::web;
 use lazy_static::lazy_static;
 use prometheus::Encoder;
-use surrealdb::engine::local;
 
 use crate::{ai, embedding, knowledge, EMBEDDING_TIME, REQUEST_RESPONSE_TIME};
 
@@ -17,7 +16,7 @@ lazy_static! {
 }
 
 /// Loads knowledge from a set of text files into an in-memory KV-store.
-pub async fn load_knowledge(path: &path::Path, db: &surrealdb::Surreal<local::Db>) {
+pub async fn load_knowledge(path: &path::Path, db: &mut knowledge::KnowledgeBase) {
     let entries = match std::fs::read_dir(path) {
         Ok(v) => v,
         Err(_) => {
@@ -92,7 +91,7 @@ async fn metrics() -> impl actix_web::Responder {
 #[actix_web::post("/query")]
 async fn query(
     state: web::Data<AppState>,
-    db: web::Data<surrealdb::Surreal<local::Db>>,
+    db: web::Data<knowledge::KnowledgeBase>,
     req_body: web::Json<QueryRequest>,
 ) -> impl actix_web::Responder {
     if req_body.query.is_empty() {
@@ -137,8 +136,8 @@ mod tests {
 
     #[actix_web::test]
     async fn test_load_knowledge_for_success() {
-        let db = crate::knowledge::get_db().await;
-        load_knowledge(path::Path::new("data"), &db).await;
+        let mut db = crate::knowledge::get_db().await;
+        load_knowledge(path::Path::new("data"), &mut db).await;
     }
 
     #[actix_web::test]
@@ -162,7 +161,7 @@ mod tests {
                     max_token: 5,
                     threads: 4,
                 }))
-                .app_data(web::Data::new(kv_store.clone()))
+                .app_data(web::Data::new(kv_store))
                 .service(query),
         )
         .await;
@@ -189,7 +188,7 @@ mod tests {
                     batch_size: 8,
                     threads: 4,
                 }))
-                .app_data(web::Data::new(kv_store.clone()))
+                .app_data(web::Data::new(kv_store))
                 .service(query),
         )
         .await;

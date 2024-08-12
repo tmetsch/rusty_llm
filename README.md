@@ -39,7 +39,7 @@ You will need to download a model and embedding model:
   * This [bge-base-en-v1.5.Q8_0.gguf](https://huggingface.co/ChristianAzinn/bge-base-en-v1.5-gguf/tree/main) 
     embedding model seem to work as well.
 
-Best to put both files into a *model/* folder as *model.gguf* and *tokenizer.json*.
+Best to put both files into a *model/* folder as *model.gguf* and *embed.gguf*.
 
 ## Configuration
 
@@ -89,6 +89,7 @@ Use the following [example manifest](k8s_deployment.yaml) to deploy this applica
 
   * 0.1.0 - initial release.
   * 0.2.0 - switch from [llama_cpp](https://github.com/edgenai/llama_cpp-rs) as [llm](https://github.com/rustformers/llm) stopped development.
+  * 0.3.0 - replaced the way we store knowledge.
 
 ## Further reading
 
