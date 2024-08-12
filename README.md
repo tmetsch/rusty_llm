@@ -88,7 +88,7 @@ Use the following [example manifest](k8s_deployment.yaml) to deploy this applica
 ## Changelog
 
   * 0.1.0 - initial release.
-  * 0.2.0 - switch from [llama_cpp](https://github.com/edgenai/llama_cpp-rs) as [llm](https://github.com/rustformers/llm) stopped development.
+  * 0.2.0 - switch to [llama_cpp](https://github.com/edgenai/llama_cpp-rs) as [llm](https://github.com/rustformers/llm) stopped development.
   * 0.3.0 - replaced the way we store knowledge.
 
 ## Further reading
