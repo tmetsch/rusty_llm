@@ -36,7 +36,7 @@ You will need to download a model and embedding model:
 
   * This [mistral-7b-instruct-v0.2.Q4_K_M.gguf](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/tree/main) 
     model seems to give reasonable good results. Otherwise, give the 
-  * [Phi-3.5-mini-instruct-Q4_K_S.gguf](https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/tree/main) a try.
+    [Phi-3.5-mini-instruct-Q4_K_S.gguf](https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/tree/main) a try.
   * This [bge-base-en-v1.5.Q8_0.gguf](https://huggingface.co/ChristianAzinn/bge-base-en-v1.5-gguf/tree/main) 
     embedding model seem to work as well.
 
