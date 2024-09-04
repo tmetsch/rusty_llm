@@ -45,18 +45,20 @@ Best to put both files into a *model/* folder as *model.gguf* and *embed.gguf*.
 
 This service can be configured through environment variables. The following variables are supported:
 
-| Environment variable    | Description                                                           | Example/Default   |
-|-------------------------|-----------------------------------------------------------------------|-------------------|
-| DATA_PATH               | Directory path from which to read text files into the knowledge base. | data              |
-| EMBEDDING_MODEL         | Full path of the embedding model to use.                              | model/embed.gguf  |
-| HTTP_ADDRESS            | Bind address to use.                                                  | 127.0.0.1:8080    |
-| HTTP_WORKERS            | Number of threads to run with the HTTP server.                        | 1                 |
-| MODEL_BATCH_SIZE        | Batch size to use.                                                    | 8                 |
-| MODEL_GPU_LAYERS        | Number of layers to offload to GPU.                                   | 0                 |
-| MODEL_MAX_TOKEN         | Maximum number of tokens to generate.                                 | 128               |
-| MODEL_PATH              | Full path to the gguf file of the model.                              | model/model.gguf  |
-| MODEL_THREADS           | Number of threads we'll use for inference.                            | 6                 |
-| PROMETHEUS_HTTP_ADDRESS | Bind address to use for prometheus.                                   | 127.0.0.1:8081    |
+| Environment variable    | Description                                                           | Example/Default  |
+|-------------------------|-----------------------------------------------------------------------|------------------|
+| DATA_PATH               | Directory path from which to read text files into the knowledge base. | data             |
+| EMBEDDING_MODEL         | Full path of the embedding model to use.                              | model/embed.gguf |
+| HTTP_ADDRESS            | Bind address to use.                                                  | 127.0.0.1:8080   |
+| HTTP_WORKERS            | Number of threads to run with the HTTP server.                        | 1                |
+| MAIN_GPU                | Identifies which GPU we should use.                                   | 0                |
+| MODEL_BATCH_SIZE        | Batch size to use.                                                    | 8                |
+| MODEL_GPU_LAYERS        | Number of layers to offload to GPU.                                   | 0                |
+| MODEL_MAX_TOKEN         | Maximum number of tokens to generate.                                 | 128              |
+| MODEL_PATH              | Full path to the gguf file of the model.                              | model/model.gguf |
+| MODEL_THREADS           | Number of threads we'll use for inference.                            | 6                |
+| PROMETHEUS_HTTP_ADDRESS | Bind address to use for prometheus.                                   | 127.0.0.1:8081   |
+| PROMPT_TEMPLATE         | A prompt template - should contain {context} and {query} elements.    | Mistral prompt   |
 
 Other environment variables such as RUST_LOG can also be used.
 

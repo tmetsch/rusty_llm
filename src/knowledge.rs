@@ -19,7 +19,10 @@ impl<'a> Eq for SimilarityContext<'a> {}
 impl<'a> Ord for SimilarityContext<'a> {
     fn cmp(&self, other: &Self) -> Ordering {
         // Reverse the order so the BinaryHeap becomes a min-heap
-        other.similarity.partial_cmp(&self.similarity).unwrap_or(Ordering::Equal)
+        other
+            .similarity
+            .partial_cmp(&self.similarity)
+            .unwrap_or(Ordering::Equal)
     }
 }
 

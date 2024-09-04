@@ -4,14 +4,19 @@ version = "0.3.0"
 edition = "2021"
 
 [dependencies]
-actix-web = { version = "4.8.0"}
+actix-web = { version = "4.8.0" }
 env_logger = { version = "0.11.3" }
 lazy_static = { version = "1.5.0" }
-llama_cpp = { version="0.3.2", features = ["clblast"]}  # using OpenCL for GPU offload is suboptimal as this only offloads the matrix multiplications atm.
+# So OpenCL support for llama.cpp only offloads matrix multiplications - so it is not the fastest.
+# SYCL support is pain to get working as there are some undefined reference in the OneAPI libs.
+# but hey, I learned a lot about build scripts along the way.
+# Vulkan seems to work for Intel GPUs - when using this branch:
+llama_cpp = { git = "https://github.com/vargad/llama_cpp-rs.git", branch = "bump_3038", features = ["vulkan"] }
 log = { version = "0.4.22" }
 prometheus = { version = "0.13.4" }
 serde_json = { version = "1.0.121" }
 serde = { version = "1.0.204", features = ["derive"] }
+strfmt = { version = "0.2.4" }
 tokio = { version = "1.39.2" }
 
 [lib]

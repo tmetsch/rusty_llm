@@ -11,6 +11,8 @@ mod tests {
             async fn $name() {
                 $(
                     let mut kv_store = rusty_llm::knowledge::get_db().await;
+
+        let prompt = "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>".to_string();
                     rusty_llm::api::load_knowledge(std::path::Path::new("data/"), &mut kv_store).await;
                     let app = actix_web::test::init_service(
                         actix_web::App::new()
@@ -18,6 +20,7 @@ mod tests {
                                 batch_size: 8,
                                 max_token: 10,
                                 threads: 4,
+                                prompt,
                             }))
                             .app_data(web::Data::new(kv_store.clone()))
                             .service(rusty_llm::api::query)
@@ -50,12 +53,17 @@ mod tests {
     #[actix_web::test]
     async fn test_if_observability_works_example() {
         let kv_store = rusty_llm::knowledge::get_db().await;
+
+        let prompt =
+            "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>"
+                .to_string();
         let app = actix_web::test::init_service(
             actix_web::App::new()
                 .app_data(web::Data::new(rusty_llm::api::AppState {
                     batch_size: 8,
                     max_token: 10,
                     threads: 4,
+                    prompt,
                 }))
                 .app_data(web::Data::new(kv_store.clone()))
                 .service(rusty_llm::api::query)

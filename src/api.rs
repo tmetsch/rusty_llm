@@ -62,6 +62,7 @@ pub struct AppState {
     pub batch_size: u32,
     pub threads: u32,
     pub max_token: usize,
+    pub prompt: String,
 }
 
 /// Represents a JSON style request.
@@ -115,6 +116,7 @@ async fn query(
         state.threads,
         state.batch_size,
         state.max_token,
+        &state.prompt,
         &MODEL,
     )
     .await;
@@ -154,12 +156,16 @@ mod tests {
     #[actix_web::test]
     async fn test_query_for_success() {
         let kv_store = crate::knowledge::get_db().await;
+        let prompt =
+            "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>"
+                .to_string();
         let app = actix_web::test::init_service(
             actix_web::App::new()
                 .app_data(web::Data::new(AppState {
                     batch_size: 8,
                     max_token: 5,
                     threads: 4,
+                    prompt,
                 }))
                 .app_data(web::Data::new(kv_store))
                 .service(query),
@@ -181,12 +187,16 @@ mod tests {
     #[actix_web::test]
     async fn test_query_for_failure() {
         let kv_store = crate::knowledge::get_db().await;
+        let prompt =
+            "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>"
+                .to_string();
         let app = actix_web::test::init_service(
             actix_web::App::new()
                 .app_data(web::Data::new(AppState {
                     max_token: 5,
                     batch_size: 8,
                     threads: 4,
+                    prompt,
                 }))
                 .app_data(web::Data::new(kv_store))
                 .service(query),

@@ -1,16 +1,23 @@
 use crate::TOKEN_RESPONSE_TIME;
+use std::collections;
 use std::time;
 
 /// Load a LLM model & Tokenizer from a file.
 pub(crate) fn load_model(gguf_path: &str) -> llama_cpp::LlamaModel {
     let mut gpu_layers: u32 = 0;
+    let mut main_gpu: u32 = 0;
     if let Ok(v) = std::env::var("MODEL_GPU_LAYERS") {
-        gpu_layers = v.parse().expect("Could not parse number og GPU layers");
+        gpu_layers = v.parse().expect("Could not parse number of GPU layers.");
+    }
+    if let Ok(v) = std::env::var("MAIN_GPU") {
+        main_gpu = v
+            .parse()
+            .expect("Could not parse number for main GPU definition.");
     }
 
     let model_options = llama_cpp::LlamaParams {
         n_gpu_layers: gpu_layers,
-        main_gpu: 1,
+        main_gpu,
         ..Default::default()
     };
     llama_cpp::LlamaModel::load_from_file(gguf_path, model_options).expect("Failed to load model!")
@@ -23,6 +30,7 @@ pub(crate) async fn query_ai(
     threads: u32,
     batch_size: u32,
     max_token: usize,
+    prompt_template: &str,
     model: &llama_cpp::LlamaModel,
 ) -> (usize, String) {
     let mut context = Vec::new();
@@ -31,12 +39,12 @@ pub(crate) async fn query_ai(
     }
     let context = serde_json::json!(context).to_string();
 
-    // Mistral AI optimized prompt...
-    let prompt = format!(
-        "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>",
-        context = context,
-        query = query
-    );
+    // format the prompt.
+    let mut vars = collections::HashMap::new();
+    vars.insert("context".to_string(), context.to_string());
+    vars.insert("query".to_string(), query.to_string());
+
+    let prompt = strfmt::strfmt(prompt_template, &vars).unwrap();
 
     // initialize a session...
     let inference_session_config = llama_cpp::SessionParams {
@@ -101,7 +109,9 @@ mod tests {
     #[actix_web::test]
     async fn test_query_ai_for_sanity() {
         let model = load_model("model/model.gguf");
-        let res = query_ai("Who was Albert Einstein", vec![], 4, 8, 10, &model).await;
+        let prompt =
+            "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>";
+        let res = query_ai("Who was Albert Einstein", vec![], 4, 8, 10, prompt, &model).await;
         assert_eq!(res.0, 11); // not quite sure why this is 11 :-(
     }
 }

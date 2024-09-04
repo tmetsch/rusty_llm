@@ -54,6 +54,21 @@ async fn main() -> std::io::Result<()> {
             .expect("Unable to parse model max token length environment variable!"),
         Err(_) => 128,
     };
+    let prompt: String = match std::env::var("MODEL_PROMPT_TEMPLATE") {
+        Ok(val) => val
+            .parse()
+            .expect("Unable to parse prompt template environment variable!"),
+        Err(_) => {
+            "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>"
+                .parse()
+                .unwrap()
+        }
+    };
+
+    // check prompt template.
+    if !prompt.contains("{context}") || !prompt.contains("{query}") {
+        panic!("The prompt template should contain context and query fields.")
+    }
 
     // run the web servers.
     let prom = tokio::spawn(async {
@@ -69,6 +84,7 @@ async fn main() -> std::io::Result<()> {
         batch_size,
         threads,
         max_token,
+        prompt,
     };
     let server = tokio::spawn(async move {
         actix_web::HttpServer::new(move || {

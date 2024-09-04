@@ -72,9 +72,9 @@ mod tests {
     fn test_embed_for_sanity() {
         let model = get_embedding_model("model/embed.gguf");
         let result = embed("hello", &model);
-        assert_eq!(result.iter().sum::<f32>(), -0.52504015);
+        assert_eq!(result.iter().sum::<f32>(), -0.52566093);
 
         let result = embed("💩", &model);
-        assert_eq!(result.iter().sum::<f32>(), -0.46041253);
+        assert_eq!(result.iter().sum::<f32>(), -0.46029997);
     }
 }
