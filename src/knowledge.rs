@@ -1,5 +1,5 @@
-use std::cmp::Ordering;
-use std::collections::BinaryHeap;
+use std::cmp;
+use std::collections;
 
 /// Defines the minimum threshold for the cosine similarity search.
 const THRESHOLD: f32 = 0.5;
@@ -17,17 +17,17 @@ struct SimilarityContext<'a> {
 impl<'a> Eq for SimilarityContext<'a> {}
 
 impl<'a> Ord for SimilarityContext<'a> {
-    fn cmp(&self, other: &Self) -> Ordering {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
         // Reverse the order so the BinaryHeap becomes a min-heap
         other
             .similarity
             .partial_cmp(&self.similarity)
-            .unwrap_or(Ordering::Equal)
+            .unwrap_or(cmp::Ordering::Equal)
     }
 }
 
 impl<'a> PartialOrd for SimilarityContext<'a> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
@@ -63,7 +63,7 @@ pub(crate) async fn get_context(embedding: Vec<f32>, db: &KnowledgeBase) -> Vec<
     }
 
     // Calculate similarities between input embedding and all stored embeddings
-    let mut heap = BinaryHeap::with_capacity(MAX_ENTRIES + 1);
+    let mut heap = collections::BinaryHeap::with_capacity(MAX_ENTRIES + 1);
 
     for (content, existing_embedding) in &db.data {
         let similarity = cosine_similarity(&embedding, existing_embedding);
@@ -88,6 +88,7 @@ pub(crate) async fn get_context(embedding: Vec<f32>, db: &KnowledgeBase) -> Vec<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ai;
     use crate::embedding::{embed, get_embedding_model};
 
     #[actix_web::test]
@@ -101,8 +102,9 @@ mod tests {
     #[actix_web::test]
     async fn test_get_content_for_success() {
         let text = "hello";
-        let model = get_embedding_model("model/embed.gguf");
-        let tokens = embed(text, &model);
+        let backend = ai::init_backend();
+        let model = get_embedding_model("model/embed.gguf", &backend);
+        let tokens = embed(text, &model, &backend);
         let mut db = get_db().await;
         add_context(text, tokens.clone(), &mut db).await;
         let tmp = get_context(tokens, &db).await;
@@ -116,23 +118,24 @@ mod tests {
         let johan = "Johan van Oldenbarnevelt founded the Dutch East India Company.";
 
         let mut db = get_db().await;
-        let model = get_embedding_model("model/embed.gguf");
+        let backend = ai::init_backend();
+        let model = get_embedding_model("model/embed.gguf", &backend);
 
         for val in &[albert, thomas, johan] {
-            let tokens = embed(val, &model);
+            let tokens = embed(val, &model, &backend);
             add_context(val, tokens, &mut db).await;
         }
 
         // test single return...
         let query = "Who was Johan Oldenbarneveld?";
-        let query_tokens = embed(query, &model);
+        let query_tokens = embed(query, &model, &backend);
         let tmp = get_context(query_tokens, &db).await;
         assert_eq!(tmp.len(), 1);
         assert_eq!(tmp[0], johan);
 
         // test double return...
         let query = "Who was Thomas Jefferson?";
-        let query_tokens = embed(query, &model);
+        let query_tokens = embed(query, &model, &backend);
         let tmp = get_context(query_tokens, &db).await;
         assert_eq!(tmp.len(), 2);
         for item in &tmp {
@@ -141,7 +144,7 @@ mod tests {
 
         // empty result...
         let query = "Who was the painter Frans Hals?";
-        let query_tokens = embed(query, &model);
+        let query_tokens = embed(query, &model, &backend);
         let tmp = get_context(query_tokens, &db).await;
         assert_eq!(tmp.len(), 0);
     }

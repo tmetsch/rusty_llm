@@ -17,8 +17,7 @@ mod tests {
                     let app = actix_web::test::init_service(
                         actix_web::App::new()
                             .app_data(web::Data::new(rusty_llm::api::AppState {
-                                batch_size: 8,
-                                max_token: 10,
+                                max_token: 1024,
                                 threads: 4,
                                 prompt,
                             }))
@@ -60,7 +59,6 @@ mod tests {
         let app = actix_web::test::init_service(
             actix_web::App::new()
                 .app_data(web::Data::new(rusty_llm::api::AppState {
-                    batch_size: 8,
                     max_token: 10,
                     threads: 4,
                     prompt,

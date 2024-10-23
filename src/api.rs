@@ -3,15 +3,21 @@ use std::time;
 
 use actix_web::web;
 use lazy_static::lazy_static;
-use prometheus::Encoder;
+use llama_cpp_2::llama_backend;
+use llama_cpp_2::model;
 
 use crate::{ai, embedding, knowledge, EMBEDDING_TIME, REQUEST_RESPONSE_TIME};
+use prometheus::Encoder;
 
 lazy_static! {
-    static ref MODEL: llama_cpp::LlamaModel =
-        ai::load_model(&std::env::var("MODEL_PATH").unwrap_or("model/model.gguf".to_string()),);
-    static ref EMBEDDING_MODEL: llama_cpp::LlamaModel = embedding::get_embedding_model(
-        &std::env::var("EMBEDDING_MODEL").unwrap_or("model/embed.gguf".to_string())
+    static ref BACKEND: llama_backend::LlamaBackend = ai::init_backend();
+    static ref MODEL: model::LlamaModel = ai::load_model(
+        &std::env::var("MODEL_PATH").unwrap_or("model/model.gguf".to_string()),
+        &BACKEND
+    );
+    static ref EMBEDDING_MODEL: model::LlamaModel = embedding::get_embedding_model(
+        &std::env::var("EMBEDDING_MODEL").unwrap_or("model/embed.gguf".to_string()),
+        &BACKEND
     );
 }
 
@@ -44,7 +50,7 @@ pub async fn load_knowledge(path: &path::Path, db: &mut knowledge::KnowledgeBase
             // Use a match statement to handle the result
             match contents {
                 Ok(data) => {
-                    let tkn_context = embedding::embed(&data, &EMBEDDING_MODEL);
+                    let tkn_context = embedding::embed(&data, &EMBEDDING_MODEL, &BACKEND);
                     knowledge::add_context(&data, tkn_context, db).await;
                 }
                 Err(err) => {
@@ -59,9 +65,8 @@ pub async fn load_knowledge(path: &path::Path, db: &mut knowledge::KnowledgeBase
 /// holds some general information for the service.
 #[derive(Clone)]
 pub struct AppState {
-    pub batch_size: u32,
-    pub threads: u32,
-    pub max_token: usize,
+    pub threads: i32,
+    pub max_token: i32,
     pub prompt: String,
 }
 
@@ -102,7 +107,7 @@ async fn query(
     }
 
     let s_0 = time::Instant::now();
-    let tkn_query = embedding::embed(&req_body.query, &EMBEDDING_MODEL);
+    let tkn_query = embedding::embed(&req_body.query, &EMBEDDING_MODEL, &BACKEND);
     let context = knowledge::get_context(tkn_query, db.get_ref()).await;
     let s_1 = time::Instant::now();
     let duration = s_1.duration_since(s_0);
@@ -114,10 +119,10 @@ async fn query(
         &req_body.query,
         context,
         state.threads,
-        state.batch_size,
         state.max_token,
         &state.prompt,
         &MODEL,
+        &BACKEND,
     )
     .await;
     let s_2 = time::Instant::now();
@@ -162,7 +167,6 @@ mod tests {
         let app = actix_web::test::init_service(
             actix_web::App::new()
                 .app_data(web::Data::new(AppState {
-                    batch_size: 8,
                     max_token: 5,
                     threads: 4,
                     prompt,
@@ -194,7 +198,6 @@ mod tests {
             actix_web::App::new()
                 .app_data(web::Data::new(AppState {
                     max_token: 5,
-                    batch_size: 8,
                     threads: 4,
                     prompt,
                 }))

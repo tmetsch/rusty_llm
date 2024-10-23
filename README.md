@@ -53,7 +53,6 @@ This service can be configured through environment variables. The following vari
 | HTTP_ADDRESS            | Bind address to use.                                                  | 127.0.0.1:8080   |
 | HTTP_WORKERS            | Number of threads to run with the HTTP server.                        | 1                |
 | MAIN_GPU                | Identifies which GPU we should use.                                   | 0                |
-| MODEL_BATCH_SIZE        | Batch size to use.                                                    | 8                |
 | MODEL_GPU_LAYERS        | Number of layers to offload to GPU.                                   | 0                |
 | MODEL_MAX_TOKEN         | Maximum number of tokens to generate.                                 | 128              |
 | MODEL_PATH              | Full path to the gguf file of the model.                              | model/model.gguf |
@@ -93,6 +92,7 @@ Use the following [example manifest](k8s_deployment.yaml) to deploy this applica
   * 0.1.0 - initial release.
   * 0.2.0 - switch to [llama_cpp](https://github.com/edgenai/llama_cpp-rs) as [llm](https://github.com/rustformers/llm) stopped development.
   * 0.3.0 - replaced the way we store knowledge.
+  * 0.4.0 - switch to [llama-cpp-2](https://github.com/utilityai/llama-cpp-rs) as it is under active development.
 
 ## Further reading
 

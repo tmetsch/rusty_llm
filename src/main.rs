@@ -1,8 +1,15 @@
 use std::path;
 
 use actix_web::web;
-
 use rusty_llm::api;
+
+/// Helper function to get an environment variable or return a default value.
+fn get_env_or_default<T: std::str::FromStr>(key: &str, default: T) -> T {
+    std::env::var(key)
+        .ok()
+        .and_then(|val| val.parse().ok())
+        .unwrap_or(default)
+}
 
 /// The main code.
 #[actix_web::main]
@@ -18,52 +25,16 @@ async fn main() -> std::io::Result<()> {
     .await;
 
     // parse the environment variables.
-    let prom_addr: String = match std::env::var("PROMETHEUS_HTTP_ADDRESS") {
-        Ok(val) => val
-            .parse()
-            .expect("Unable to parse the prometheus bind address environment variable!"),
-        Err(_) => "127.0.0.1:8081".parse().unwrap(),
-    };
-    let addr: String = match std::env::var("HTTP_ADDRESS") {
-        Ok(val) => val
-            .parse()
-            .expect("Unable to parse bind address environment variable!"),
-        Err(_) => "127.0.0.1:8080".parse().unwrap(),
-    };
-    let workers: usize = match std::env::var("HTTP_WORKERS") {
-        Ok(val) => val
-            .parse()
-            .expect("Unable to parse number of workers variable!"),
-        Err(_) => 1,
-    };
-    let threads: u32 = match std::env::var("MODEL_THREADS") {
-        Ok(val) => val
-            .parse()
-            .expect("Unable to parse model thread environment variable!"),
-        Err(_) => 6,
-    };
-    let batch_size: u32 = match std::env::var("MODEL_BATCH_SIZE") {
-        Ok(val) => val
-            .parse()
-            .expect("Unable to parse model batch size environment variable!"),
-        Err(_) => 8,
-    };
-    let max_token: usize = match std::env::var("MODEL_MAX_TOKEN") {
-        Ok(val) => val
-            .parse()
-            .expect("Unable to parse model max token length environment variable!"),
-        Err(_) => 128,
-    };
-    let prompt: String = match std::env::var("MODEL_PROMPT_TEMPLATE") {
-        Ok(val) => val
-            .parse()
-            .expect("Unable to parse prompt template environment variable!"),
-        Err(_) => {
-            "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>"
-                .parse()
-                .unwrap()
-        }
-    };
+    let prom_addr = get_env_or_default("PROMETHEUS_HTTP_ADDRESS", "127.0.0.1:8081".to_string());
+    let addr = get_env_or_default("HTTP_ADDRESS", "127.0.0.1:8080".to_string());
+    let workers = get_env_or_default("HTTP_WORKERS", 1);
+    let threads = get_env_or_default("MODEL_THREADS", 6);
+    let max_token = get_env_or_default("MODEL_MAX_TOKEN", 128);
+    let prompt = get_env_or_default(
+        "MODEL_PROMPT_TEMPLATE",
+        "<s>[INST]Using this information: {context}. Answer the Question: {query}[/INST]</s>"
+            .to_string(),
+    );
 
     // check prompt template.
     if !prompt.contains("{context}") || !prompt.contains("{query}") {
@@ -81,7 +52,6 @@ async fn main() -> std::io::Result<()> {
     });
 
     let state = api::AppState {
-        batch_size,
         threads,
         max_token,
         prompt,
