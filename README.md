@@ -56,9 +56,9 @@ This service can be configured through environment variables. The following vari
 | MODEL_GPU_LAYERS        | Number of layers to offload to GPU.                                   | 0                |
 | MODEL_MAX_TOKEN         | Maximum number of tokens to generate.                                 | 128              |
 | MODEL_PATH              | Full path to the gguf file of the model.                              | model/model.gguf |
+| MODEL_PROMPT_TEMPLATE   | A prompt template - should contain {context} and {query} elements.    | Mistral prompt   |
 | MODEL_THREADS           | Number of threads we'll use for inference.                            | 6                |
 | PROMETHEUS_HTTP_ADDRESS | Bind address to use for prometheus.                                   | 127.0.0.1:8081   |
-| PROMPT_TEMPLATE         | A prompt template - should contain {context} and {query} elements.    | Mistral prompt   |
 
 Other environment variables such as RUST_LOG can also be used.
 
@@ -66,14 +66,16 @@ Other environment variables such as RUST_LOG can also be used.
 
 The following [curl](https://curl.se/) commands show the format the service understands:
 
-    $ curl -X POST localhost:8080/query -d '{"query": "Who was Albert Einstein?"}' -H "Content-Type: application/json"
-    {"response":"[INST]Using this information: [] answer the Question: Who was Albert Einstein?[/INST] Albert Einstein 
-    (14 March 1879 – 18 April 1955) was a German-born theoretical physicist [...]"}
+    $ curl -N -X POST http://localhost:8080/v1/chat/completions \
+        -d '{"stream": true, "model": "rusty_llm", 
+             "messages": [{"role": "user", "content": "Who was Albert Einstein?"}]}' \
+        -H 'Content-Type: application/json'
+    data: {"id":"foo","object":"chat.completion.chunk","created":1733007600,"model":"rusty_llm", "system_fingerprint": 
+    "fp0", "choices":[{"index":0,"delta":{"content": " Albert"},"logprobs":null,"finish_reason":null}]}
+    ...
 
-You can also test if the RAG works by running the following query - notice how easy it is to trick these word 
-prediction machines:
-
-    $ curl -X POST localhost:8080/query -d '{"query": "Who was thom Rhubarb?"}' -H "Content-Type: application/json"
+You can also test if the RAG works by running asking *Who was Thom Thubarb* - notice how easy it is to trick these word 
+prediction machines - and see if respond with sth on screw-printers.
 
 ## Kubernetes based deployment
 
@@ -93,6 +95,7 @@ Use the following [example manifest](k8s_deployment.yaml) to deploy this applica
   * 0.2.0 - switch to [llama_cpp](https://github.com/edgenai/llama_cpp-rs) as [llm](https://github.com/rustformers/llm) stopped development.
   * 0.3.0 - replaced the way we store knowledge.
   * 0.4.0 - switch to [llama-cpp-2](https://github.com/utilityai/llama-cpp-rs) as it is under active development.
+  * 0.5.0 - support to [OpenAI like API](https://platform.openai.com/docs/api-reference/introduction).
 
 ## Further reading
 

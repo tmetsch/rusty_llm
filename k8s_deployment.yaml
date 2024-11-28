@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: ai-server
-          image: rusty_llm:0.1.0
+          image: rusty_llm:0.5.0
           ports:
             - containerPort: 8080
               name: server-port

@@ -9,7 +9,7 @@ pub mod api;
 pub(crate) mod embedding;
 pub mod knowledge;
 
-// A set of buckets with granularity around 0.5s.
+// A set of buckets.
 const BUCKETS: &[f64] = &[
     0.001,
     0.01,

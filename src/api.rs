@@ -70,16 +70,19 @@ pub struct AppState {
     pub prompt: String,
 }
 
-/// Represents a JSON style request.
+/// Represents a message in a chat.
 #[derive(serde::Deserialize)]
-struct QueryRequest {
-    query: String,
+struct Message {
+    role: String,
+    content: String,
 }
 
-/// Represents a JSON style response.
-#[derive(serde::Serialize)]
-struct QueryResponse {
-    response: String,
+/// Represents a JSON style request.
+#[derive(serde::Deserialize)]
+struct Request {
+    stream: bool,
+    model: String,
+    messages: Vec<Message>,
 }
 
 /// Handles prometheus style queries for observability.
@@ -93,46 +96,106 @@ async fn metrics() -> impl actix_web::Responder {
     actix_web::HttpResponse::Ok().body(buffer)
 }
 
-/// Handles an HTTP post & triggers a prompt on the LLM.
-#[actix_web::post("/query")]
-async fn query(
+/// List the available models.
+#[actix_web::get("/v1/models")]
+async fn list_models() -> actix_web::HttpResponse {
+    let response_data = serde_json::json!({
+        "object": "list",
+        "data": [
+            {
+                "id": "rusty_llm",
+                "object": "model",
+                "created": 1733007600,
+                "owned_by": "foo"
+            }
+        ]
+    });
+
+    actix_web::HttpResponse::Ok()
+        .content_type("application/json")
+        .json(response_data)
+}
+
+/// Adds the chat history to the context.
+fn add_chat_history(messages: &[Message]) -> Vec<String> {
+    let mut output = Vec::new();
+    for message in &messages[..messages.len() - 1] {
+        output.push(format!("{}: {}", message.role, message.content));
+    }
+    output
+}
+
+#[actix_web::post("/v1/chat/completions")]
+async fn stream_response(
     state: web::Data<AppState>,
     db: web::Data<knowledge::KnowledgeBase>,
-    req_body: web::Json<QueryRequest>,
+    req_body: web::Json<Request>,
 ) -> impl actix_web::Responder {
-    if req_body.query.is_empty() {
-        return actix_web::HttpResponse::Ok().json(QueryResponse {
-            response: "Empty query - not triggering LLM model.".to_string(),
-        });
+    if req_body.messages.is_empty()
+        || req_body.messages.last().unwrap().content.is_empty()
+        || !req_body.stream
+        || req_body.model != "rusty_llm"
+    {
+        return actix_web::HttpResponse::BadRequest()
+            .body("Only support streaming mode with the model rusty_llm, requires at least 1 message in the request - not triggering LLM model.".to_string());
     }
+    let overall_start_time = time::Instant::now();
+    // To make this work with many models we take the last message as main query. The previous chat messages go in as context...
+    let query = &req_body.messages.last().unwrap().content;
 
-    let s_0 = time::Instant::now();
-    let tkn_query = embedding::embed(&req_body.query, &EMBEDDING_MODEL, &BACKEND);
-    let context = knowledge::get_context(tkn_query, db.get_ref()).await;
-    let s_1 = time::Instant::now();
-    let duration = s_1.duration_since(s_0);
+    // Timing the embedding step
+    let embedding_start_time = time::Instant::now();
+    let tkn_query = embedding::embed(query, &EMBEDDING_MODEL, &BACKEND);
+    let mut context = knowledge::get_context(tkn_query, db.get_ref()).await;
+    let embedding_duration = embedding_start_time.elapsed();
     EMBEDDING_TIME
         .with_label_values(&[])
-        .observe(duration.as_secs_f64());
+        .observe(embedding_duration.as_secs_f64());
 
-    let res = ai::query_ai(
-        &req_body.query,
+    // ...now add the old chat stuff (if any)...
+    if req_body.messages.len() >= 3 {
+        context.extend(add_chat_history(&req_body.messages));
+    }
+
+    // Initialize the AI query context
+    let ai_context = ai::AiQueryContext::new(
+        query,
         context,
         state.threads,
         state.max_token,
         &state.prompt,
         &MODEL,
         &BACKEND,
-    )
-    .await;
-    let s_2 = time::Instant::now();
-    let duration = s_2.duration_since(s_0);
+    );
+
+    // Create a token stream
+    let token_stream = futures::stream::unfold(ai_context, |mut ai_context| async move {
+        match ai_context.next_token().await {
+            Some(token) => {
+                let json_tmp = format!(
+                    r#"data: {{"id":"foo","object":"chat.completion.chunk","created":1733007600,"model":"{}", "system_fingerprint": "fp0", "choices":[{{"index":0,"delta":{{"content": "{}"}},"logprobs":null,"finish_reason":null}}]}}"#,
+                    "rusty_llm", token
+                );
+                // Not 100% why this is needed but without it the streaming does not work :-(
+                tokio::time::sleep(time::Duration::from_nanos(1)).await;
+                Some((
+                    Ok::<web::Bytes, actix_web::Error>(web::Bytes::from(json_tmp + "\n\n")),
+                    ai_context,
+                ))
+            }
+            None => None,
+        }
+    });
+
+    // Measure the overall request-response time
+    let overall_duration = overall_start_time.elapsed();
     REQUEST_RESPONSE_TIME
         .with_label_values(&[])
-        .observe(duration.as_secs_f64());
+        .observe(overall_duration.as_secs_f64());
 
-    // TODO: make this a streaming response.
-    actix_web::HttpResponse::Ok().json(QueryResponse { response: res.1 })
+    actix_web::HttpResponse::Ok()
+        .content_type("text/event-stream")
+        .streaming(token_stream)
 }
 
 #[cfg(test)]
@@ -143,7 +206,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_load_knowledge_for_success() {
-        let mut db = crate::knowledge::get_db().await;
+        let mut db = knowledge::get_db().await;
         load_knowledge(path::Path::new("data"), &mut db).await;
     }
 
@@ -159,8 +222,47 @@ mod tests {
     }
 
     #[actix_web::test]
-    async fn test_query_for_success() {
-        let kv_store = crate::knowledge::get_db().await;
+    async fn test_list_models_for_success() {
+        let app = actix_web::test::init_service(actix_web::App::new().service(list_models)).await;
+        let req = actix_web::test::TestRequest::default()
+            .uri("/v1/models")
+            .insert_header(actix_web::http::header::ContentType::plaintext())
+            .to_request();
+        let resp = actix_web::test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+    }
+
+    #[test]
+    fn test_add_chat_history() {
+        let input = vec![
+            Message {
+                role: "user".to_string(),
+                content: "Who was Albert Einstein?".to_string(),
+            },
+            Message {
+                role: "assistant".to_string(),
+                content: "A physicist".to_string(),
+            },
+            Message {
+                role: "user".to_string(),
+                content: "Tell me more!".to_string(),
+            },
+        ];
+
+        let result = add_chat_history(&input);
+        let expected = vec![
+            "Use the following context as your chat history, inside <chat></chat> XML tags.\n<chat>".to_string(),
+            "user: Who was Albert Einstein?".to_string(),
+            "assistant: A physicist".to_string(),
+            "</chat>".to_string(),
+        ];
+
+        assert_eq!(result, expected);
+    }
+
+    #[actix_web::test]
+    async fn test_stream_response_for_success() {
+        let kv_store = knowledge::get_db().await;
         let prompt =
             "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>"
                 .to_string();
@@ -172,14 +274,14 @@ mod tests {
                     prompt,
                 }))
                 .app_data(web::Data::new(kv_store))
-                .service(query),
+                .service(stream_response),
         )
         .await;
         let req = actix_web::test::TestRequest::post()
-            .uri("/query")
+            .uri("/v1/chat/completions")
             .insert_header(actix_web::http::header::ContentType::json())
             .set_payload(
-                "{\"query\": \"Who was Albert Einstein?\"}"
+                "{\"stream\": true, \"model\": \"rusty_llm\", \"messages\": [{\"role\": \"user\", \"content\": \"Who was Albert Einstein?\"}]}"
                     .try_into_bytes()
                     .unwrap(),
             )
@@ -189,8 +291,8 @@ mod tests {
     }
 
     #[actix_web::test]
-    async fn test_query_for_failure() {
-        let kv_store = crate::knowledge::get_db().await;
+    async fn test_stream_response_for_failure() {
+        let kv_store = knowledge::get_db().await;
         let prompt =
             "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>"
                 .to_string();
@@ -202,11 +304,11 @@ mod tests {
                     prompt,
                 }))
                 .app_data(web::Data::new(kv_store))
-                .service(query),
+                .service(stream_response),
         )
         .await;
         let req = actix_web::test::TestRequest::post()
-            .uri("/query")
+            .uri("/v1/chat/completions")
             .insert_header(actix_web::http::header::ContentType::json())
             .set_payload("Garbage".try_into_bytes().unwrap())
             .to_request();

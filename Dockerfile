@@ -1,7 +1,7 @@
 FROM rust:1.82-slim-bookworm as build
 
 RUN apt-get update
-RUN apt-get install -y build-essential cmake libssl-dev pkg-config libclang-dev libvulkan-dev
+RUN apt-get install -y build-essential cmake libssl-dev pkg-config libclang-dev libvulkan-dev glslc
 
 COPY src /app/src
 COPY README.md /app

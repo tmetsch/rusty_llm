@@ -62,7 +62,7 @@ fn batch_decode(
     output: &mut Vec<Vec<f32>>,
 ) {
     ctx.clear_kv_cache();
-    ctx.decode(batch).expect("FDailed to decide");
+    ctx.decode(batch).expect("Failed to decode");
     for i in 0..s_batch {
         let embedding = ctx
             .embeddings_seq_ith(i)
