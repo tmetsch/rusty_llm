@@ -5,8 +5,6 @@ This repository contains all code to run a super simple AI LLM model - such as [
 best model to run locally - for inference; it includes simple RAG functionalities. Most importantly it exposes metrics 
 about how long it took to create a response, as well as how long it took to generate the tokens.
 
-Currently, uses [llama_cpp](https://github.com/edgenai/llama_cpp-rs). 
-
 ![rusting llama being observed in mistral winds.](misc/inspecting_rusting_llama_in_mistral_wind.png)
 
 ## Warning
@@ -74,7 +72,7 @@ The following [curl](https://curl.se/) commands show the format the service unde
     "fp0", "choices":[{"index":0,"delta":{"content": " Albert"},"logprobs":null,"finish_reason":null}]}
     ...
 
-You can also test if the RAG works by running asking *Who was Thom Thubarb* - notice how easy it is to trick these word 
+You can also test if the RAG works by asking *Who was Thom Rhubarb?* - notice how easy it is to trick these word 
 prediction machines - and see if respond with sth on screw-printers.
 
 ## Kubernetes based deployment
@@ -96,6 +94,14 @@ Use the following [example manifest](k8s_deployment.yaml) to deploy this applica
   * 0.3.0 - replaced the way we store knowledge.
   * 0.4.0 - switch to [llama-cpp-2](https://github.com/utilityai/llama-cpp-rs) as it is under active development.
   * 0.5.0 - support to [OpenAI like API](https://platform.openai.com/docs/api-reference/introduction).
+  * 0.6.0 - version fixes.
+
+## Development
+
+Running the unittests can be annoying and "Failed to initialize LlamaBackend: BackendAlreadyInitialized" errors might
+show up. Best to run tests like this:
+
+    cargo test --lib  api::tests -- --test-threads=1
 
 ## Further reading
 

@@ -14,9 +14,9 @@ struct SimilarityContext<'a> {
     content: &'a str,
 }
 
-impl<'a> Eq for SimilarityContext<'a> {}
+impl Eq for SimilarityContext<'_> {}
 
-impl<'a> Ord for SimilarityContext<'a> {
+impl Ord for SimilarityContext<'_> {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         // Reverse the order so the BinaryHeap becomes a min-heap
         other
@@ -26,7 +26,7 @@ impl<'a> Ord for SimilarityContext<'a> {
     }
 }
 
-impl<'a> PartialOrd for SimilarityContext<'a> {
+impl PartialOrd for SimilarityContext<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         Some(self.cmp(other))
     }

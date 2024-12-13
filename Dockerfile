@@ -1,4 +1,4 @@
-FROM rust:1.82-slim-bookworm as build
+FROM rust:1.83-slim-bookworm as build
 
 RUN apt-get update
 RUN apt-get install -y build-essential cmake libssl-dev pkg-config libclang-dev libvulkan-dev glslc

@@ -1,7 +1,7 @@
 use crate::TOKEN_RESPONSE_TIME;
 use llama_cpp_2::llama_backend;
 use llama_cpp_2::model;
-use llama_cpp_2::token;
+use llama_cpp_2::sampling;
 use std::collections;
 use std::num;
 use std::time;
@@ -9,7 +9,7 @@ use std::time;
 /// Initialize the LLama backend.
 pub(crate) fn init_backend() -> llama_backend::LlamaBackend {
     llama_backend::LlamaBackend::init_numa(llama_backend::NumaStrategy::ISOLATE)
-        .expect("Failed to initialize LlamaBackend.")
+        .expect("Failed to initialize LlamaBackend")
 }
 
 /// Load a LLM model & Tokenizer from a file.
@@ -40,6 +40,8 @@ pub struct AiQueryContext<'a> {
     n_cur: i32,
     max_token: i32,
     model: &'a model::LlamaModel,
+    batch: llama_cpp_2::llama_batch::LlamaBatch,
+    sampler: sampling::LlamaSampler,
     s_0: time::Instant,
 }
 
@@ -87,12 +89,20 @@ impl<'a> AiQueryContext<'a> {
 
         ctx.decode(&mut batch).expect("Failed to decode batch!");
 
+        let sampler_params = sampling::params::LlamaSamplerChainParams::default();
+        let sampler = sampling::LlamaSampler::new(sampler_params)
+            .expect("failed to create sampler!")
+            .add_dist(42)
+            .add_greedy();
+
         AiQueryContext {
             ctx,
             decoder: encoding_rs::UTF_8.new_decoder(),
             n_cur: batch.n_tokens(),
             max_token,
             model,
+            batch,
+            sampler,
             s_0: time::Instant::now(),
         }
     }
@@ -102,24 +112,21 @@ impl<'a> AiQueryContext<'a> {
             return None;
         }
 
-        let candidates = self.ctx.candidates();
-        let candidates_p = token::data_array::LlamaTokenDataArray::from_iter(candidates, false);
-        let new_token_id = self.ctx.sample_token_greedy(candidates_p);
+        let token = self.sampler.sample(&self.ctx, self.batch.n_tokens() - 1);
+        self.sampler.accept(token);
 
-        if self.model.is_eog_token(new_token_id) {
+        if self.model.is_eog_token(token) {
             return None;
         }
 
         let output_bytes = self
             .model
-            .token_to_bytes(new_token_id, model::Special::Tokenize)
+            .token_to_bytes(token, model::Special::Tokenize)
             .expect("Failed to convert token to bytes");
-
         let mut output_string = String::with_capacity(32);
         let _ = self
             .decoder
             .decode_to_string(&output_bytes, &mut output_string, false);
-        self.n_cur += 1;
 
         // Timing the token generation
         let token_duration = self.s_0.elapsed();
@@ -130,12 +137,15 @@ impl<'a> AiQueryContext<'a> {
         self.s_0 = time::Instant::now();
 
         // Prepare for the next token
-        let mut batch = llama_cpp_2::llama_batch::LlamaBatch::new(512, 1);
-        batch
-            .add(new_token_id, self.n_cur, &[0], true)
+        self.batch.clear();
+        self.batch
+            .add(token, self.n_cur, &[0], true)
             .expect("Failed to add token...");
+
+        self.n_cur += 1;
+
         self.ctx
-            .decode(&mut batch)
+            .decode(&mut self.batch)
             .expect("Failed to decode batch!");
 
         Some(output_string)

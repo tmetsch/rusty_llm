@@ -118,10 +118,14 @@ async fn list_models() -> actix_web::HttpResponse {
 
 /// Adds the chat history to the context.
 fn add_chat_history(messages: &[Message]) -> Vec<String> {
-    let mut output = Vec::new();
+    let mut output = vec![
+        "Use the following context as your chat history, inside <chat></chat> XML tags.\n<chat>"
+            .to_string(),
+    ];
     for message in &messages[..messages.len() - 1] {
         output.push(format!("{}: {}", message.role, message.content));
     }
+    output.push("</chat>".to_string());
     output
 }
 
@@ -269,7 +273,7 @@ mod tests {
         let app = actix_web::test::init_service(
             actix_web::App::new()
                 .app_data(web::Data::new(AppState {
-                    max_token: 5,
+                    max_token: 32,
                     threads: 4,
                     prompt,
                 }))
