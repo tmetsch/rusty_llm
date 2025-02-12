@@ -15,7 +15,6 @@ lazy_static = { version = "1.5.0" }
 # Vulkan seems to work for Intel GPUs - just enable the feature: features = ["vulkan"].
 # For some reason it slows down the code when not using GPUs btw.
 llama-cpp-2 = { version = "0.1.86" }
-llama-cpp-sys-2 = { version = "0.1.86" }
 log = { version = "0.4.22" }
 prometheus = { version = "0.13.4" }
 serde_json = { version = "1.0.133" }
