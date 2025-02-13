@@ -10,7 +10,7 @@ mod tests {
             #[actix_web::test]
             async fn $name() {
                 $(
-                    let mut kv_store = rusty_llm::knowledge::get_db().await;
+                    let mut kv_store = rusty_llm::knowledge::get_db();
 
         let prompt = "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>".to_string();
                     rusty_llm::api::load_knowledge(std::path::Path::new("data/"), &mut kv_store).await;
@@ -52,7 +52,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_if_observability_works_example() {
-        let kv_store = rusty_llm::knowledge::get_db().await;
+        let kv_store = rusty_llm::knowledge::get_db();
 
         let prompt =
             "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>"

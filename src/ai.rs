@@ -110,7 +110,7 @@ impl<'a> AiQueryContext<'a> {
         }
     }
 
-    pub async fn next_token(&mut self) -> Option<String> {
+    pub fn next_token(&mut self) -> Option<String> {
         if self.n_cur >= self.max_token {
             return None;
         }
@@ -161,7 +161,7 @@ mod tests {
 
     async fn process_tokens(mut query_context: AiQueryContext<'_>) -> usize {
         let mut count = 0;
-        while let Some(_token) = query_context.next_token().await {
+        while let Some(_token) = query_context.next_token() {
             count += 1;
         }
         count
