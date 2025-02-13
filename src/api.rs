@@ -3,26 +3,26 @@ use std::time;
 
 use actix_web::web;
 use lazy_static::lazy_static;
-use llama_cpp_2::llama_backend;
 use llama_cpp_2::model;
 
 use crate::{ai, embedding, knowledge, EMBEDDING_TIME, REQUEST_RESPONSE_TIME};
 use prometheus::Encoder;
 
 lazy_static! {
-    static ref BACKEND: llama_backend::LlamaBackend = ai::init_backend();
     static ref MODEL: model::LlamaModel = ai::load_model(
         &std::env::var("MODEL_PATH").unwrap_or("model/model.gguf".to_string()),
-        &BACKEND
+        ai::init_backend()
     );
     static ref EMBEDDING_MODEL: model::LlamaModel = embedding::get_embedding_model(
         &std::env::var("EMBEDDING_MODEL").unwrap_or("model/embed.gguf".to_string()),
-        &BACKEND
+        ai::init_backend()
     );
 }
 
 /// Loads knowledge from a set of text files into an in-memory KV-store.
 pub async fn load_knowledge(path: &path::Path, db: &mut knowledge::KnowledgeBase) {
+    let backend = ai::init_backend();
+
     let entries = match std::fs::read_dir(path) {
         Ok(v) => v,
         Err(_) => {
@@ -50,7 +50,7 @@ pub async fn load_knowledge(path: &path::Path, db: &mut knowledge::KnowledgeBase
             // Use a match statement to handle the result
             match contents {
                 Ok(data) => {
-                    let tkn_context = embedding::embed(&data, &EMBEDDING_MODEL, &BACKEND);
+                    let tkn_context = embedding::embed(&data, &EMBEDDING_MODEL, backend);
                     knowledge::add_context(&data, tkn_context, db).await;
                 }
                 Err(err) => {
@@ -144,12 +144,14 @@ async fn stream_response(
             .body("Only support streaming mode with the model rusty_llm, requires at least 1 message in the request - not triggering LLM model.".to_string());
     }
     let overall_start_time = time::Instant::now();
+    let backend = ai::init_backend();
+
     // To make this work with many models we take the last message as main query. The previous chat messages go in as context...
     let query = &req_body.messages.last().unwrap().content;
 
     // Timing the embedding step
     let embedding_start_time = time::Instant::now();
-    let tkn_query = embedding::embed(query, &EMBEDDING_MODEL, &BACKEND);
+    let tkn_query = embedding::embed(query, &EMBEDDING_MODEL, backend);
     let mut context = knowledge::get_context(tkn_query, db.get_ref()).await;
     let embedding_duration = embedding_start_time.elapsed();
     EMBEDDING_TIME
@@ -169,7 +171,7 @@ async fn stream_response(
         state.max_token,
         &state.prompt,
         &MODEL,
-        &BACKEND,
+        backend,
     );
 
     // Create a token stream

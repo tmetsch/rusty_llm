@@ -4,12 +4,16 @@ use llama_cpp_2::model;
 use llama_cpp_2::sampling;
 use std::collections;
 use std::num;
+use std::sync::LazyLock;
 use std::time;
 
 /// Initialize the LLama backend.
-pub(crate) fn init_backend() -> llama_backend::LlamaBackend {
-    llama_backend::LlamaBackend::init_numa(llama_backend::NumaStrategy::ISOLATE)
-        .expect("Failed to initialize LlamaBackend")
+pub(crate) fn init_backend() -> &'static llama_backend::LlamaBackend {
+    static LLAMA_BACKEND: LazyLock<llama_backend::LlamaBackend> = LazyLock::new(|| {
+        llama_backend::LlamaBackend::init_numa(llama_backend::NumaStrategy::ISOLATE)
+            .expect("Failed to initialize LlamaBackend")
+    });
+    &*LLAMA_BACKEND
 }
 
 /// Load a LLM model & Tokenizer from a file.
@@ -167,7 +171,6 @@ mod tests {
     fn test_load_model_for_success() {
         let backend = init_backend();
         load_model("model/model.gguf", &backend);
-        drop(backend);
     }
 
     #[test]
@@ -175,7 +178,6 @@ mod tests {
     fn test_load_model_for_failure() {
         let backend = init_backend();
         load_model("foo/bar.gguf", &backend);
-        drop(backend);
     }
 
     #[test]
@@ -184,7 +186,6 @@ mod tests {
         std::env::set_var("MODEL_GPU_LAYERS", "1");
         load_model("model/model.gguf", &backend);
         std::env::remove_var("MODEL_GPU_LAYERS");
-        drop(backend);
     }
 
     #[actix_web::test]
@@ -205,7 +206,5 @@ mod tests {
         );
         let i = process_tokens(query_context).await;
         assert_eq!(i, 7); // max tokens is 30; subtract prompt and we get 7.
-
-        drop(backend);
     }
 }
