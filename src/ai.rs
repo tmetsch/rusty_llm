@@ -89,11 +89,10 @@ impl<'a> AiQueryContext<'a> {
 
         ctx.decode(&mut batch).expect("Failed to decode batch!");
 
-        let sampler_params = sampling::params::LlamaSamplerChainParams::default();
-        let sampler = sampling::LlamaSampler::new(sampler_params)
-            .expect("failed to create sampler!")
-            .add_dist(42)
-            .add_greedy();
+        let sampler = sampling::LlamaSampler::chain_simple([
+            sampling::LlamaSampler::dist(42),
+            sampling::LlamaSampler::greedy(),
+        ]);
 
         AiQueryContext {
             ctx,
