@@ -96,13 +96,6 @@ Use the following [example manifest](k8s_deployment.yaml) to deploy this applica
   * 0.5.0 - support to [OpenAI like API](https://platform.openai.com/docs/api-reference/introduction).
   * 0.6.0 - version fixes.
 
-## Development
-
-Running the unittests can be annoying and "Failed to initialize LlamaBackend: BackendAlreadyInitialized" errors might
-show up. Best to run tests like this:
-
-    cargo test --lib  api::tests -- --test-threads=1
-
 ## Further reading
 
 Some of the following links can be useful:
