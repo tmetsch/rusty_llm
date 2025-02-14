@@ -39,7 +39,7 @@ pub struct KnowledgeBase {
 }
 
 /// Returns a knowledge base.
-pub async fn get_db() -> KnowledgeBase {
+pub fn get_db() -> KnowledgeBase {
     KnowledgeBase { data: Vec::new() }
 }
 
@@ -52,12 +52,12 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 }
 
 /// Adds context to the knowledge base.
-pub(crate) async fn add_context(content: &str, embedding: Vec<f32>, db: &mut KnowledgeBase) {
+pub(crate) fn add_context(content: &str, embedding: Vec<f32>, db: &mut KnowledgeBase) {
     db.data.push((content.to_string(), embedding));
 }
 
 /// Retrieves context relevant to the given embedding.
-pub(crate) async fn get_context(embedding: Vec<f32>, db: &KnowledgeBase) -> Vec<String> {
+pub(crate) fn get_context(embedding: Vec<f32>, db: &KnowledgeBase) -> Vec<String> {
     if db.data.is_empty() {
         return Vec::new();
     }
@@ -95,8 +95,8 @@ mod tests {
     async fn test_add_content_for_success() {
         let text = "hello";
         let tokens = Vec::new();
-        let mut db = get_db().await;
-        add_context(text, tokens, &mut db).await;
+        let mut db = get_db();
+        add_context(text, tokens, &mut db);
     }
 
     #[actix_web::test]
@@ -105,9 +105,9 @@ mod tests {
         let backend = ai::init_backend();
         let model = get_embedding_model("model/embed.gguf", &backend);
         let tokens = embed(text, &model, &backend);
-        let mut db = get_db().await;
-        add_context(text, tokens.clone(), &mut db).await;
-        let tmp = get_context(tokens, &db).await;
+        let mut db = get_db();
+        add_context(text, tokens.clone(), &mut db);
+        let tmp = get_context(tokens, &db);
         assert_eq!(tmp.len(), 1)
     }
 
@@ -117,26 +117,26 @@ mod tests {
         let thomas = "Thomas Jefferson was the third president of the United States.";
         let johan = "Johan van Oldenbarnevelt founded the Dutch East India Company.";
 
-        let mut db = get_db().await;
+        let mut db = get_db();
         let backend = ai::init_backend();
         let model = get_embedding_model("model/embed.gguf", &backend);
 
         for val in &[albert, thomas, johan] {
             let tokens = embed(val, &model, &backend);
-            add_context(val, tokens, &mut db).await;
+            add_context(val, tokens, &mut db);
         }
 
         // test single return...
         let query = "Who was Johan Oldenbarneveld?";
         let query_tokens = embed(query, &model, &backend);
-        let tmp = get_context(query_tokens, &db).await;
+        let tmp = get_context(query_tokens, &db);
         assert_eq!(tmp.len(), 1);
         assert_eq!(tmp[0], johan);
 
         // test double return...
         let query = "Who was Thomas Jefferson?";
         let query_tokens = embed(query, &model, &backend);
-        let tmp = get_context(query_tokens, &db).await;
+        let tmp = get_context(query_tokens, &db);
         assert_eq!(tmp.len(), 2);
         for item in &tmp {
             assert_ne!(item, johan)
@@ -145,7 +145,7 @@ mod tests {
         // empty result...
         let query = "Who was the painter Frans Hals?";
         let query_tokens = embed(query, &model, &backend);
-        let tmp = get_context(query_tokens, &db).await;
+        let tmp = get_context(query_tokens, &db);
         assert_eq!(tmp.len(), 0);
     }
 }

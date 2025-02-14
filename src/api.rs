@@ -51,7 +51,7 @@ pub async fn load_knowledge(path: &path::Path, db: &mut knowledge::KnowledgeBase
             match contents {
                 Ok(data) => {
                     let tkn_context = embedding::embed(&data, &EMBEDDING_MODEL, backend);
-                    knowledge::add_context(&data, tkn_context, db).await;
+                    knowledge::add_context(&data, tkn_context, db);
                 }
                 Err(err) => {
                     log::error!("Could not read file {}.", err);
@@ -152,7 +152,7 @@ async fn stream_response(
     // Timing the embedding step
     let embedding_start_time = time::Instant::now();
     let tkn_query = embedding::embed(query, &EMBEDDING_MODEL, backend);
-    let mut context = knowledge::get_context(tkn_query, db.get_ref()).await;
+    let mut context = knowledge::get_context(tkn_query, db.get_ref());
     let embedding_duration = embedding_start_time.elapsed();
     EMBEDDING_TIME
         .with_label_values(&[])
@@ -176,7 +176,7 @@ async fn stream_response(
 
     // Create a token stream
     let token_stream = futures::stream::unfold(ai_context, |mut ai_context| async move {
-        match ai_context.next_token().await {
+        match ai_context.next_token() {
             Some(token) => {
                 let json_tmp = format!(
                     r#"data: {{"id":"foo","object":"chat.completion.chunk","created":1733007600,"model":"{}", "system_fingerprint": "fp0", "choices":[{{"index":0,"delta":{{"content": "{}"}},"logprobs":null,"finish_reason":null}}]}}"#,
@@ -212,7 +212,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_load_knowledge_for_success() {
-        let mut db = knowledge::get_db().await;
+        let mut db = knowledge::get_db();
         load_knowledge(path::Path::new("data"), &mut db).await;
     }
 
@@ -268,7 +268,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_stream_response_for_success() {
-        let kv_store = knowledge::get_db().await;
+        let kv_store = knowledge::get_db();
         let prompt =
             "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>"
                 .to_string();
@@ -298,7 +298,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_stream_response_for_failure() {
-        let kv_store = knowledge::get_db().await;
+        let kv_store = knowledge::get_db();
         let prompt =
             "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>"
                 .to_string();
