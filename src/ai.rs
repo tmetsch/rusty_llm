@@ -83,7 +83,9 @@ impl<'a> AiQueryContext<'a> {
         }
 
         let last_index = (token_list.len() - 1) as i32;
-        let mut batch = llama_cpp_2::llama_batch::LlamaBatch::new(512, 1);
+        let mut batch = llama_cpp_2::llama_batch::LlamaBatch::new(max_token as usize, 1);
+
+        let s_0 = time::Instant::now();
 
         for (i, token) in token_list.into_iter().enumerate() {
             batch
@@ -106,7 +108,7 @@ impl<'a> AiQueryContext<'a> {
             model,
             batch,
             sampler,
-            s_0: time::Instant::now(),
+            s_0,
         }
     }
 
