@@ -1,5 +1,5 @@
 use std::path;
-use std::time;
+use std::time::{Instant, UNIX_EPOCH};
 
 use actix_web::web;
 use futures::StreamExt;
@@ -145,7 +145,7 @@ async fn stream_response(
         return actix_web::HttpResponse::BadRequest()
             .body("Only support streaming mode with the model rusty_llm, requires at least 1 message in the request - not triggering LLM model.".to_string());
     }
-    let overall_start_time = time::Instant::now();
+    let overall_start_time = Instant::now();
     let backend = ai::init_backend();
 
     // To make this work with many models we take the last message as main query. The previous chat messages go in as context...
@@ -154,7 +154,7 @@ async fn stream_response(
     let query_ = query.clone();
     let context = match actix_web::web::block(move || {
         // Timing the embedding step
-        let embedding_start_time = time::Instant::now();
+        let embedding_start_time = Instant::now();
         let tkn_query = embedding::embed(&query_, &EMBEDDING_MODEL, backend);
         let mut context = knowledge::get_context(tkn_query, db.get_ref());
         let embedding_duration = embedding_start_time.elapsed();
@@ -176,9 +176,15 @@ async fn stream_response(
         }
     };
 
+    // Instant would be more correct, but we can't get the timestamp in seconds
+    let timestamp = UNIX_EPOCH
+        .elapsed()
+        .expect("System time is before epoch")
+        .as_secs();
+
     // Initialize the AI query context
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-    let ai_worker = actix_web::rt::task::spawn_blocking(move || {
+    actix_web::rt::task::spawn_blocking(move || {
         let mut ai_context = ai::AiQueryContext::new(
             &query,
             context,
@@ -196,9 +202,9 @@ async fn stream_response(
     });
 
     // Create a token stream
-    let token_stream = UnboundedReceiverStream::new(rx).map(|token| {
+    let token_stream = UnboundedReceiverStream::new(rx).map(move |token| {
         let json_tmp = format!(
-            r#"data: {{"id":"foo","object":"chat.completion.chunk","created":1733007600,"model":"{}", "system_fingerprint": "fp0", "choices":[{{"index":0,"delta":{{"content": "{}"}},"logprobs":null,"finish_reason":null}}]}}"#,
+            r#"data: {{"id":"foo","object":"chat.completion.chunk","created":{timestamp},"model":"{}", "system_fingerprint": "fp0", "choices":[{{"index":0,"delta":{{"content": "{}"}},"logprobs":null,"finish_reason":null}}]}}"#,
             "rusty_llm", token
         );
         Ok::<_, actix_web::Error>(web::Bytes::from(json_tmp + "\n\n"))
