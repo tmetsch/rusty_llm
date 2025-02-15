@@ -21,6 +21,7 @@ serde_json = { version = "1.0.133" }
 serde = { version = "1.0.216", features = ["derive"] }
 strfmt = { version = "0.2.4" }
 tokio = { version = "1.42.0" }
+tokio-stream = "0.1.17"
 
 [lib]
 name = "rusty_llm"

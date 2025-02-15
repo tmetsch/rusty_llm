@@ -1,9 +1,11 @@
 use std::path;
-use std::time;
+use std::time::{Instant, UNIX_EPOCH};
 
 use actix_web::web;
+use futures::StreamExt;
 use lazy_static::lazy_static;
 use llama_cpp_2::model;
+use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::{ai, embedding, knowledge, EMBEDDING_TIME, REQUEST_RESPONSE_TIME};
 use prometheus::Encoder;
@@ -143,54 +145,69 @@ async fn stream_response(
         return actix_web::HttpResponse::BadRequest()
             .body("Only support streaming mode with the model rusty_llm, requires at least 1 message in the request - not triggering LLM model.".to_string());
     }
-    let overall_start_time = time::Instant::now();
+    let overall_start_time = Instant::now();
     let backend = ai::init_backend();
 
     // To make this work with many models we take the last message as main query. The previous chat messages go in as context...
-    let query = &req_body.messages.last().unwrap().content;
+    let query = req_body.messages.last().unwrap().content.clone();
 
-    // Timing the embedding step
-    let embedding_start_time = time::Instant::now();
-    let tkn_query = embedding::embed(query, &EMBEDDING_MODEL, backend);
-    let mut context = knowledge::get_context(tkn_query, db.get_ref());
-    let embedding_duration = embedding_start_time.elapsed();
-    EMBEDDING_TIME
-        .with_label_values(&[])
-        .observe(embedding_duration.as_secs_f64());
+    let query_ = query.clone();
+    let context = match actix_web::web::block(move || {
+        // Timing the embedding step
+        let embedding_start_time = Instant::now();
+        let tkn_query = embedding::embed(&query_, &EMBEDDING_MODEL, backend);
+        let mut context = knowledge::get_context(tkn_query, db.get_ref());
+        let embedding_duration = embedding_start_time.elapsed();
+        EMBEDDING_TIME
+            .with_label_values(&[])
+            .observe(embedding_duration.as_secs_f64());
 
-    // ...now add the old chat stuff (if any)...
-    if req_body.messages.len() >= 3 {
-        context.extend(add_chat_history(&req_body.messages));
-    }
+        // ...now add the old chat stuff (if any)...
+        if req_body.messages.len() >= 3 {
+            context.extend(add_chat_history(&req_body.messages));
+        }
+        context
+    })
+    .await
+    {
+        Ok(context) => context,
+        Err(e) => {
+            return actix_web::HttpResponse::InternalServerError().body(e.to_string());
+        }
+    };
+
+    // Instant would be more correct, but we can't get the timestamp in seconds
+    let timestamp = UNIX_EPOCH
+        .elapsed()
+        .expect("System time is before epoch")
+        .as_secs();
 
     // Initialize the AI query context
-    let ai_context = ai::AiQueryContext::new(
-        query,
-        context,
-        state.threads,
-        state.max_token,
-        &state.prompt,
-        &MODEL,
-        backend,
-    );
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    actix_web::rt::task::spawn_blocking(move || {
+        let mut ai_context = ai::AiQueryContext::new(
+            &query,
+            context,
+            state.threads,
+            state.max_token,
+            &state.prompt,
+            &MODEL,
+            backend,
+        );
+        while let Some(token) = ai_context.next_token() {
+            if tx.send(token).is_err() {
+                break;
+            }
+        }
+    });
 
     // Create a token stream
-    let token_stream = futures::stream::unfold(ai_context, |mut ai_context| async move {
-        match ai_context.next_token() {
-            Some(token) => {
-                let json_tmp = format!(
-                    r#"data: {{"id":"foo","object":"chat.completion.chunk","created":1733007600,"model":"{}", "system_fingerprint": "fp0", "choices":[{{"index":0,"delta":{{"content": "{}"}},"logprobs":null,"finish_reason":null}}]}}"#,
-                    "rusty_llm", token
-                );
-                // Not 100% why this is needed but without it the streaming does not work :-(
-                tokio::time::sleep(time::Duration::from_nanos(1)).await;
-                Some((
-                    Ok::<web::Bytes, actix_web::Error>(web::Bytes::from(json_tmp + "\n\n")),
-                    ai_context,
-                ))
-            }
-            None => None,
-        }
+    let token_stream = UnboundedReceiverStream::new(rx).map(move |token| {
+        let json_tmp = format!(
+            r#"data: {{"id":"foo","object":"chat.completion.chunk","created":{timestamp},"model":"{}", "system_fingerprint": "fp0", "choices":[{{"index":0,"delta":{{"content": "{}"}},"logprobs":null,"finish_reason":null}}]}}"#,
+            "rusty_llm", token
+        );
+        Ok::<_, actix_web::Error>(web::Bytes::from(json_tmp + "\n\n"))
     });
 
     // Measure the overall request-response time
