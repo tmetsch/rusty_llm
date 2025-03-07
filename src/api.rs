@@ -91,11 +91,17 @@ struct Request {
 #[actix_web::get("/metrics")]
 async fn metrics() -> impl actix_web::Responder {
     let encoder = prometheus::TextEncoder::new();
-    let mut buffer = vec![];
+    let mut buffer = Vec::new();
     let mf = prometheus::gather();
-    encoder.encode(&mf, &mut buffer).unwrap();
+    
+    if let Err(e) = encoder.encode(&mf, &mut buffer) {
+        eprintln!("Failed to encode Prometheus metrics: {}", e);
+        return actix_web::HttpResponse::InternalServerError().finish();
+    }
 
-    actix_web::HttpResponse::Ok().body(buffer)
+    actix_web::HttpResponse::Ok()
+        .content_type("text/plain; version=0.0.4")  // Correct Content-Type
+        .body(buffer)
 }
 
 /// List the available models.
