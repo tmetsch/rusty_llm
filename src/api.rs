@@ -210,8 +210,8 @@ async fn stream_response(
     // Create a token stream
     let token_stream = UnboundedReceiverStream::new(rx).map(move |token| {
         let json_tmp = format!(
-            r#"data: {{"id":"foo","object":"chat.completion.chunk","created":{timestamp},"model":"{}", "system_fingerprint": "fp0", "choices":[{{"index":0,"delta":{{"content": "{}"}},"logprobs":null,"finish_reason":null}}]}}"#,
-            "rusty_llm", token
+            r#"data: {{"id":"foo","object":"chat.completion.chunk","created":{timestamp},"model":"{}", "system_fingerprint": "fp0", "choices":[{{"index":0,"delta":{{"content": {}}},"logprobs":null,"finish_reason":null}}]}}"#,
+            "rusty_llm", serde_json::to_string(&token).unwrap()
         );
         Ok::<_, actix_web::Error>(web::Bytes::from(json_tmp + "\n\n"))
     });
