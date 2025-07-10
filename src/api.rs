@@ -56,7 +56,7 @@ pub async fn load_knowledge(path: &path::Path, db: &mut knowledge::KnowledgeBase
                     knowledge::add_context(&data, tkn_context, db);
                 }
                 Err(err) => {
-                    log::error!("Could not read file {}.", err);
+                    log::error!("Could not read file {err}.");
                     continue;
                 }
             }
@@ -93,14 +93,14 @@ async fn metrics() -> impl actix_web::Responder {
     let encoder = prometheus::TextEncoder::new();
     let mut buffer = Vec::new();
     let mf = prometheus::gather();
-    
+
     if let Err(e) = encoder.encode(&mf, &mut buffer) {
-        eprintln!("Failed to encode Prometheus metrics: {}", e);
+        eprintln!("Failed to encode Prometheus metrics: {e}");
         return actix_web::HttpResponse::InternalServerError().finish();
     }
 
     actix_web::HttpResponse::Ok()
-        .content_type("text/plain; version=0.0.4")  // Correct Content-Type
+        .content_type("text/plain; version=0.0.4") // Correct Content-Type
         .body(buffer)
 }
 

@@ -7,13 +7,15 @@ use std::num;
 use std::sync::LazyLock;
 use std::time;
 
+const CONTEXT_LEN: usize = 8196; // TODO: pick up from env variable.
+
 /// Initialize the LLama backend.
 pub(crate) fn init_backend() -> &'static llama_backend::LlamaBackend {
     static LLAMA_BACKEND: LazyLock<llama_backend::LlamaBackend> = LazyLock::new(|| {
         llama_backend::LlamaBackend::init_numa(llama_backend::NumaStrategy::ISOLATE)
             .expect("Failed to initialize LlamaBackend")
     });
-    &*LLAMA_BACKEND
+    &LLAMA_BACKEND
 }
 
 /// Load a LLM model & Tokenizer from a file.
@@ -42,6 +44,7 @@ pub struct AiQueryContext<'a> {
     ctx: llama_cpp_2::context::LlamaContext<'a>,
     decoder: encoding_rs::Decoder,
     n_cur: i32,
+    generated_len: usize,
     max_token: i32,
     model: &'a model::LlamaModel,
     batch: llama_cpp_2::llama_batch::LlamaBatch,
@@ -50,7 +53,6 @@ pub struct AiQueryContext<'a> {
 }
 
 impl<'a> AiQueryContext<'a> {
-    /// Creates a new QueryAiContext for token generation.
     pub fn new(
         query: &str,
         references: Vec<String>,
@@ -67,7 +69,7 @@ impl<'a> AiQueryContext<'a> {
         let prompt = strfmt::strfmt(prompt_template, &vars).unwrap();
 
         let inference_context = llama_cpp_2::context::params::LlamaContextParams::default()
-            .with_n_ctx(Some(num::NonZeroU32::new(2048).unwrap()))
+            .with_n_ctx(Some(num::NonZeroU32::new(CONTEXT_LEN as u32).unwrap()))
             .with_n_threads(threads);
 
         let mut ctx = model
@@ -78,14 +80,23 @@ impl<'a> AiQueryContext<'a> {
             .str_to_token(&prompt, model::AddBos::Always)
             .expect("Failed to tokenize prompt...");
 
-        if token_list.len() >= max_token as usize {
-            panic!("Maximum token length is smaller than the prompt...");
+        let prompt_len = token_list.len();
+
+        if prompt_len > CONTEXT_LEN {
+            panic!("Prompt length ({prompt_len}) exceeds model context length ({CONTEXT_LEN})");
         }
 
-        let last_index = (token_list.len() - 1) as i32;
-        let mut batch = llama_cpp_2::llama_batch::LlamaBatch::new(max_token as usize, 1);
+        let adjusted_max_token = if prompt_len + max_token as usize > CONTEXT_LEN {
+            CONTEXT_LEN - prompt_len
+        } else {
+            max_token as usize
+        };
 
-        let s_0 = time::Instant::now();
+        // Batch size = prompt tokens + max tokens to generate
+        let mut batch =
+            llama_cpp_2::llama_batch::LlamaBatch::new(prompt_len + adjusted_max_token, 1);
+
+        let last_index = (token_list.len() - 1) as i32;
 
         for (i, token) in token_list.into_iter().enumerate() {
             batch
@@ -103,17 +114,20 @@ impl<'a> AiQueryContext<'a> {
         AiQueryContext {
             ctx,
             decoder: encoding_rs::UTF_8.new_decoder(),
-            n_cur: batch.n_tokens(),
-            max_token,
+            n_cur: prompt_len as i32,
+            generated_len: 0,
+            max_token: adjusted_max_token as i32,
             model,
             batch,
             sampler,
-            s_0,
+            s_0: time::Instant::now(),
         }
     }
 
+    // rest of the impl...
+
     pub fn next_token(&mut self) -> Option<String> {
-        if self.n_cur >= self.max_token {
+        if self.generated_len >= self.max_token as usize {
             return None;
         }
 
@@ -138,7 +152,7 @@ impl<'a> AiQueryContext<'a> {
         TOKEN_RESPONSE_TIME
             .with_label_values(&[])
             .observe(token_duration.as_secs_f64());
-        println!("Token took: {:?}.", token_duration);
+        println!("Token took: {token_duration:?}.");
         self.s_0 = time::Instant::now();
 
         // Prepare for the next token
@@ -148,6 +162,7 @@ impl<'a> AiQueryContext<'a> {
             .expect("Failed to add token...");
 
         self.n_cur += 1;
+        self.generated_len += 1;
 
         self.ctx
             .decode(&mut self.batch)
@@ -207,6 +222,6 @@ mod tests {
             &backend,
         );
         let i = process_tokens(query_context).await;
-        assert_eq!(i, 7); // max tokens is 30; subtract prompt and we get 7.
+        assert_eq!(i, 30);
     }
 }

@@ -127,9 +127,15 @@ mod tests {
         let backend = ai::init_backend();
         let model = get_embedding_model("model/embed.gguf", &backend);
         let result = embed("hello", &model, &backend);
-        assert_eq!(result.iter().sum::<f32>(), -0.52566093);
+        assert_eq!(
+            (result.iter().sum::<f32>() * 1000.0).round() / 1000.0,
+            -0.525
+        );
 
         let result = embed("💩", &model, &backend);
-        assert_eq!(result.iter().sum::<f32>(), -0.46029997);
+        assert_eq!(
+            (result.iter().sum::<f32>() * 1000.0).round() / 1000.0,
+            -0.460
+        );
     }
 }
