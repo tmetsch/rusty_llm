@@ -40,12 +40,14 @@ const BUCKETS: &[f64] = &[
 ];
 
 lazy_static!(
+    static ref INSTANCE_LABEL: String = std::env::var("INSTANCE_LABEL").unwrap_or_else(|_| "default".to_string());
+
     /// Histogram for collecting token creation time.
     static ref TOKEN_RESPONSE_TIME: prometheus::HistogramVec =
         prometheus::register_histogram_vec!(
             "token_creation_duration",
             "Histogram of token generation times in seconds.",
-            &[],
+            &["instance_label"],
             BUCKETS.to_vec()
         )
         .unwrap();
@@ -54,7 +56,7 @@ lazy_static!(
         prometheus::register_histogram_vec!(
             "embedding_duration",
             "Histogram of embedding time in seconds.",
-            &[],
+            &["instance_label"],
             BUCKETS.to_vec()
         )
         .unwrap();
@@ -63,7 +65,7 @@ lazy_static!(
         prometheus::register_histogram_vec!(
             "inference_response_duration",
             "Histogram of response generation times in seconds.",
-            &[],
+            &["instance_label"],
             BUCKETS.to_vec()
         )
         .unwrap();

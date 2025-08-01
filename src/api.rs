@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use llama_cpp_2::model;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use crate::{ai, embedding, knowledge, EMBEDDING_TIME, REQUEST_RESPONSE_TIME};
+use crate::{ai, embedding, knowledge, EMBEDDING_TIME, INSTANCE_LABEL, REQUEST_RESPONSE_TIME};
 use prometheus::Encoder;
 
 lazy_static! {
@@ -165,7 +165,7 @@ async fn stream_response(
         let mut context = knowledge::get_context(tkn_query, db.get_ref());
         let embedding_duration = embedding_start_time.elapsed();
         EMBEDDING_TIME
-            .with_label_values(&[])
+            .with_label_values(&[&INSTANCE_LABEL])
             .observe(embedding_duration.as_secs_f64());
 
         // ...now add the old chat stuff (if any)...
@@ -219,7 +219,7 @@ async fn stream_response(
     // Measure the overall request-response time
     let overall_duration = overall_start_time.elapsed();
     REQUEST_RESPONSE_TIME
-        .with_label_values(&[])
+        .with_label_values(&[&INSTANCE_LABEL])
         .observe(overall_duration.as_secs_f64());
 
     actix_web::HttpResponse::Ok()

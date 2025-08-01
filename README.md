@@ -50,6 +50,7 @@ This service can be configured through environment variables. The following vari
 | EMBEDDING_MODEL         | Full path of the embedding model to use.                              | model/embed.gguf |
 | HTTP_ADDRESS            | Bind address to use.                                                  | 127.0.0.1:8080   |
 | HTTP_WORKERS            | Number of threads to run with the HTTP server.                        | 1                |
+| INSTANCE_LABEL          | Label used to tag the prometheus metrics.                             | default          |
 | MAIN_GPU                | Identifies which GPU we should use.                                   | 0                |
 | MODEL_GPU_LAYERS        | Number of layers to offload to GPU.                                   | 0                |
 | MODEL_MAX_TOKEN         | Maximum number of tokens to generate.                                 | 128              |

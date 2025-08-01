@@ -1,4 +1,4 @@
-use crate::TOKEN_RESPONSE_TIME;
+use crate::{INSTANCE_LABEL, TOKEN_RESPONSE_TIME};
 use llama_cpp_2::llama_backend;
 use llama_cpp_2::model;
 use llama_cpp_2::sampling;
@@ -150,7 +150,7 @@ impl<'a> AiQueryContext<'a> {
         // Timing the token generation
         let token_duration = self.s_0.elapsed();
         TOKEN_RESPONSE_TIME
-            .with_label_values(&[])
+            .with_label_values(&[&INSTANCE_LABEL])
             .observe(token_duration.as_secs_f64());
         println!("Token took: {token_duration:?}.");
         self.s_0 = time::Instant::now();
