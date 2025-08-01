@@ -87,6 +87,6 @@ mod tests {
             .to_request();
         let resp = actix_web::test::call_service(&app, req).await;
         assert!(resp.status().is_success());
-        assert!(resp.into_body().try_into_bytes().unwrap().len() > 0);
+        assert!(!resp.into_body().try_into_bytes().unwrap().is_empty());
     }
 }

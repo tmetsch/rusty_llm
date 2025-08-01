@@ -187,28 +187,28 @@ mod tests {
     #[test]
     fn test_load_model_for_success() {
         let backend = init_backend();
-        load_model("model/model.gguf", &backend);
+        load_model("model/model.gguf", backend);
     }
 
     #[test]
     #[should_panic(expected = "\"foo/bar.gguf\" does not exist")]
     fn test_load_model_for_failure() {
         let backend = init_backend();
-        load_model("foo/bar.gguf", &backend);
+        load_model("foo/bar.gguf", backend);
     }
 
     #[test]
     fn test_load_model_for_sanity() {
         let backend = init_backend();
         std::env::set_var("MODEL_GPU_LAYERS", "1");
-        load_model("model/model.gguf", &backend);
+        load_model("model/model.gguf", backend);
         std::env::remove_var("MODEL_GPU_LAYERS");
     }
 
     #[actix_web::test]
     async fn test_ai_query_context_for_sanity() {
         let backend = init_backend();
-        let model = load_model("model/model.gguf", &backend);
+        let model = load_model("model/model.gguf", backend);
         let prompt =
             "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>";
 
@@ -219,7 +219,7 @@ mod tests {
             30,
             prompt,
             &model,
-            &backend,
+            backend,
         );
         let i = process_tokens(query_context).await;
         assert_eq!(i, 30);

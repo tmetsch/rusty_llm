@@ -103,8 +103,8 @@ mod tests {
     async fn test_get_content_for_success() {
         let text = "hello";
         let backend = ai::init_backend();
-        let model = get_embedding_model("model/embed.gguf", &backend);
-        let tokens = embed(text, &model, &backend);
+        let model = get_embedding_model("model/embed.gguf", backend);
+        let tokens = embed(text, &model, backend);
         let mut db = get_db();
         add_context(text, tokens.clone(), &mut db);
         let tmp = get_context(tokens, &db);
@@ -119,23 +119,23 @@ mod tests {
 
         let mut db = get_db();
         let backend = ai::init_backend();
-        let model = get_embedding_model("model/embed.gguf", &backend);
+        let model = get_embedding_model("model/embed.gguf", backend);
 
         for val in &[albert, thomas, johan] {
-            let tokens = embed(val, &model, &backend);
+            let tokens = embed(val, &model, backend);
             add_context(val, tokens, &mut db);
         }
 
         // test single return...
         let query = "Who was Johan Oldenbarneveld?";
-        let query_tokens = embed(query, &model, &backend);
+        let query_tokens = embed(query, &model, backend);
         let tmp = get_context(query_tokens, &db);
         assert_eq!(tmp.len(), 1);
         assert_eq!(tmp[0], johan);
 
         // test double return...
         let query = "Who was Thomas Jefferson?";
-        let query_tokens = embed(query, &model, &backend);
+        let query_tokens = embed(query, &model, backend);
         let tmp = get_context(query_tokens, &db);
         assert_eq!(tmp.len(), 2);
         for item in &tmp {
@@ -144,7 +144,7 @@ mod tests {
 
         // empty result...
         let query = "Who was the painter Frans Hals?";
-        let query_tokens = embed(query, &model, &backend);
+        let query_tokens = embed(query, &model, backend);
         let tmp = get_context(query_tokens, &db);
         assert_eq!(tmp.len(), 0);
     }

@@ -105,34 +105,34 @@ mod tests {
     #[test]
     fn test_get_embedding_model_for_success() {
         let backend = ai::init_backend();
-        get_embedding_model("model/embed.gguf", &backend);
+        get_embedding_model("model/embed.gguf", backend);
     }
 
     #[test]
     fn test_embed_for_success() {
         let backend = ai::init_backend();
-        let model = get_embedding_model("model/embed.gguf", &backend);
-        embed("Lorem ipsum dolor sit amet.", &model, &backend);
+        let model = get_embedding_model("model/embed.gguf", backend);
+        embed("Lorem ipsum dolor sit amet.", &model, backend);
     }
 
     #[test]
     #[should_panic(expected = "\"foo/bar42\" does not exist")]
     fn test_get_embedding_model_for_failure() {
         let backend = ai::init_backend();
-        get_embedding_model("foo/bar42", &backend);
+        get_embedding_model("foo/bar42", backend);
     }
 
     #[test]
     fn test_embed_for_sanity() {
         let backend = ai::init_backend();
-        let model = get_embedding_model("model/embed.gguf", &backend);
-        let result = embed("hello", &model, &backend);
+        let model = get_embedding_model("model/embed.gguf", backend);
+        let result = embed("hello", &model, backend);
         assert_eq!(
             (result.iter().sum::<f32>() * 1000.0).round() / 1000.0,
             -0.525
         );
 
-        let result = embed("💩", &model, &backend);
+        let result = embed("💩", &model, backend);
         assert_eq!(
             (result.iter().sum::<f32>() * 1000.0).round() / 1000.0,
             -0.460
