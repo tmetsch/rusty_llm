@@ -67,14 +67,7 @@ impl<'a> AiQueryContext<'a> {
         vars.insert("query".to_string(), query.to_string());
 
         let prompt = strfmt::strfmt(prompt_template, &vars).unwrap();
-
-        let inference_context = llama_cpp_2::context::params::LlamaContextParams::default()
-            .with_n_ctx(Some(num::NonZeroU32::new(CONTEXT_LEN as u32).unwrap()))
-            .with_n_threads(threads);
-
-        let mut ctx = model
-            .new_context(backend, inference_context)
-            .expect("Could not create context!");
+        log::debug!("Prompt is: {prompt}");
 
         let token_list = model
             .str_to_token(&prompt, model::AddBos::Always)
@@ -92,9 +85,19 @@ impl<'a> AiQueryContext<'a> {
             max_token as usize
         };
 
-        // Batch size = prompt tokens + max tokens to generate
+        let n_batch_needed = (prompt_len + adjusted_max_token).min(CONTEXT_LEN);
+
+        let inference_context = llama_cpp_2::context::params::LlamaContextParams::default()
+            .with_n_ctx(Some(num::NonZeroU32::new(CONTEXT_LEN as u32).unwrap()))
+            .with_n_batch(n_batch_needed.try_into().unwrap())
+            .with_n_threads(threads);
+
+        let mut ctx = model
+            .new_context(backend, inference_context)
+            .expect("Could not create context!");
+
         let mut batch =
-            llama_cpp_2::llama_batch::LlamaBatch::new(prompt_len + adjusted_max_token, 1);
+            llama_cpp_2::llama_batch::LlamaBatch::new(n_batch_needed, 1);
 
         let last_index = (token_list.len() - 1) as i32;
 
