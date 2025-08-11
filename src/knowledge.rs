@@ -2,7 +2,7 @@ use std::cmp;
 use std::collections;
 
 /// Defines the minimum threshold for the cosine similarity search.
-const THRESHOLD: f32 = 0.5;
+const THRESHOLD: f32 = 0.65;
 
 /// Limits the number of entries we return from the knowledge base.
 const MAX_ENTRIES: usize = 3;

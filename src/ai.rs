@@ -155,7 +155,7 @@ impl<'a> AiQueryContext<'a> {
         TOKEN_RESPONSE_TIME
             .with_label_values(&[&INSTANCE_LABEL])
             .observe(token_duration.as_secs_f64());
-        println!("Token took: {token_duration:?}.");
+        log::info!("Token took: {token_duration:?}.");
         self.s_0 = time::Instant::now();
 
         // Prepare for the next token
