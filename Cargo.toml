@@ -1,6 +1,6 @@
 [package]
 name = "rusty_llm"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 
 [dependencies]
@@ -13,11 +13,11 @@ lazy_static = { version = "1.5.0" }
 # SYCL support is a pain to get working as there are some undefined reference in the OneAPI libs.
 # but hey, I learned a lot about build scripts along the way.
 # Vulkan seems to work for Intel GPUs - just enable the feature: features = ["vulkan"].
-llama-cpp-2 = { version = "0.1.109" }
+llama-cpp-2 = { version = "0.1.109", features = ["vulkan"] }
 log = { version = "0.4.22" }
 prometheus = { version = "0.13.4" }
-serde_json = { version = "1.0.133" }
 serde = { version = "1.0.216", features = ["derive"] }
+serde_json = { version = "1.0.133" }
 strfmt = { version = "0.2.4" }
 tokio = { version = "1.42.0" }
 tokio-stream = "0.1.17"

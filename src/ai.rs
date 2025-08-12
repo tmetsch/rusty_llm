@@ -96,8 +96,7 @@ impl<'a> AiQueryContext<'a> {
             .new_context(backend, inference_context)
             .expect("Could not create context!");
 
-        let mut batch =
-            llama_cpp_2::llama_batch::LlamaBatch::new(n_batch_needed, 1);
+        let mut batch = llama_cpp_2::llama_batch::LlamaBatch::new(n_batch_needed, 1);
 
         let last_index = (token_list.len() - 1) as i32;
 

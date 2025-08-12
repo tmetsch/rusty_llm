@@ -96,6 +96,7 @@ Use the following [example manifest](k8s_deployment.yaml) to deploy this applica
   * 0.4.0 - switch to [llama-cpp-2](https://github.com/utilityai/llama-cpp-rs) as it is under active development.
   * 0.5.0 - support to [OpenAI like API](https://platform.openai.com/docs/api-reference/introduction).
   * 0.6.0 - version fixes.
+  * 0.7.0 - support for caching context etc.
 
 ## Further reading
 

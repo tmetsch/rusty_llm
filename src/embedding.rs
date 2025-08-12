@@ -25,34 +25,19 @@ pub(crate) fn embed(
         .new_context(backend, ctx_params)
         .expect("Failed to construct new LlamaContext.");
 
-    // tokenize the prompt
-    let tokens_lines_list = content
-        .lines()
-        .map(|line| model.str_to_token(line, model::AddBos::Always))
-        .collect::<Result<Vec<_>, _>>()
+    // For now let's not go line by line but do it all in one goal...might make this configurable later.
+    let tokens_list = model
+        .str_to_token(content, model::AddBos::Always)
         .expect("Failed to convert content to token list.");
+    let mut output = Vec::with_capacity(tokens_list.len());
 
     let mut batch = llama_batch::LlamaBatch::new(ctx.n_ctx() as usize, 1);
+    batch
+        .add_sequence(&tokens_list, 0, false)
+        .expect("Failed to add sequence");
+    batch_decode(&mut ctx, &mut batch, 1, &mut output);
 
-    let mut max_seq_id_batch = 0;
-    let mut output = Vec::with_capacity(tokens_lines_list.len());
-    for tokens in &tokens_lines_list {
-        // Flush the batch if the next prompt would exceed our batch size
-        if (batch.n_tokens() as usize + tokens.len()) > ctx.n_ctx() as usize {
-            batch_decode(&mut ctx, &mut batch, max_seq_id_batch, &mut output);
-            max_seq_id_batch = 0;
-        }
-
-        batch
-            .add_sequence(tokens, max_seq_id_batch, false)
-            .expect("Failed to add sequence.");
-        max_seq_id_batch += 1;
-    }
-    // Handle final batch
-    batch_decode(&mut ctx, &mut batch, max_seq_id_batch, &mut output);
-
-    // Compute the average embedding from the decoded results
-    compute_average_embedding(output, model.n_embd() as usize)
+    output[0].clone()
 }
 
 fn batch_decode(
@@ -79,23 +64,23 @@ fn normalize(input: &[f32]) -> Vec<f32> {
     input.iter().map(|&val| val / magnitude).collect()
 }
 
-/// Computes the average embedding.
-fn compute_average_embedding(embeddings: Vec<Vec<f32>>, embedding_size: usize) -> Vec<f32> {
-    let mut average_embedding = vec![0.0; embedding_size];
-    let num_embeddings = embeddings.len() as f32;
-
-    for embedding in embeddings {
-        for (i, value) in embedding.iter().enumerate() {
-            average_embedding[i] += value;
-        }
-    }
-
-    for value in &mut average_embedding {
-        *value /= num_embeddings;
-    }
-
-    average_embedding
-}
+// /// Computes the average embedding.
+// fn compute_average_embedding(embeddings: Vec<Vec<f32>>, embedding_size: usize) -> Vec<f32> {
+//     let mut average_embedding = vec![0.0; embedding_size];
+//     let num_embeddings = embeddings.len() as f32;
+//
+//     for embedding in embeddings {
+//         for (i, value) in embedding.iter().enumerate() {
+//             average_embedding[i] += value;
+//         }
+//     }
+//
+//     for value in &mut average_embedding {
+//         *value /= num_embeddings;
+//     }
+//
+//     average_embedding
+// }
 
 #[cfg(test)]
 mod tests {
@@ -129,7 +114,7 @@ mod tests {
         let result = embed("hello", &model, backend);
         assert_eq!(
             (result.iter().sum::<f32>() * 1000.0).round() / 1000.0,
-            -0.525
+            -0.526
         );
 
         let result = embed("💩", &model, backend);
