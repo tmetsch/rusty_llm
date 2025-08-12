@@ -74,9 +74,9 @@ pub struct AppState {
 
 /// Represents a message in a chat.
 #[derive(serde::Deserialize)]
-struct Message {
-    role: String,
-    content: String,
+pub(crate) struct Message {
+    pub(crate) role: String,
+    pub(crate) content: String,
 }
 
 /// Represents a JSON style request.

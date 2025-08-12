@@ -6,6 +6,7 @@ use lazy_static::lazy_static;
 
 pub(crate) mod ai;
 pub mod api;
+pub(crate) mod cache;
 pub(crate) mod embedding;
 pub mod knowledge;
 
