@@ -3,6 +3,11 @@ name = "rusty_llm"
 version = "0.7.0"
 edition = "2021"
 
+[lib]
+name = "rusty_llm"
+path = "src/lib.rs"
+doctest = false
+
 [dependencies]
 actix-web = { version = "4.9.0" }
 encoding_rs = { version = "0.8.35" }
@@ -21,8 +26,3 @@ serde_json = { version = "1.0.133" }
 strfmt = { version = "0.2.4" }
 tokio = { version = "1.42.0" }
 tokio-stream = "0.1.17"
-
-[lib]
-name = "rusty_llm"
-path = "src/lib.rs"
-doctest = false

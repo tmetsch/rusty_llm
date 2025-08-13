@@ -1,7 +1,8 @@
-use std::path;
-
 use actix_web::web;
-use rusty_llm::api;
+use rusty_llm::{api, cache};
+use std::sync::Arc;
+use std::{path, time};
+use tokio::sync::RwLock;
 
 /// Helper function to get an environment variable or return a default value.
 fn get_env_or_default<T: std::str::FromStr>(key: &str, default: T) -> T {
@@ -51,6 +52,9 @@ async fn main() -> std::io::Result<()> {
             .await
     });
 
+    let cache = Arc::new(RwLock::new(cache::TokenCache::new(
+        time::Duration::from_secs(500),
+    )));
     let state = api::AppState {
         threads,
         max_token,
@@ -61,6 +65,7 @@ async fn main() -> std::io::Result<()> {
             actix_web::App::new()
                 .app_data(web::Data::new(state.clone()))
                 .app_data(web::Data::new(kv_store.clone()))
+                .app_data(web::Data::new(cache.clone()))
                 .service(api::stream_response)
                 .service(api::list_models)
         })

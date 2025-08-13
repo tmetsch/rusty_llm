@@ -1,8 +1,5 @@
 use crate::{INSTANCE_LABEL, TOKEN_RESPONSE_TIME};
-use llama_cpp_2::llama_backend;
-use llama_cpp_2::model;
-use llama_cpp_2::sampling;
-use std::collections;
+use llama_cpp_2::{llama_backend, model, sampling, token};
 use std::num;
 use std::sync::LazyLock;
 use std::time;
@@ -41,39 +38,26 @@ pub(crate) fn load_model(
 }
 
 pub struct AiQueryContext<'a> {
+    batch: llama_cpp_2::llama_batch::LlamaBatch,
     ctx: llama_cpp_2::context::LlamaContext<'a>,
     decoder: encoding_rs::Decoder,
-    n_cur: i32,
     generated_len: usize,
     max_token: i32,
     model: &'a model::LlamaModel,
-    batch: llama_cpp_2::llama_batch::LlamaBatch,
-    sampler: sampling::LlamaSampler,
+    n_cur: i32,
     s_0: time::Instant,
+    sampler: sampling::LlamaSampler,
 }
 
 impl<'a> AiQueryContext<'a> {
     pub fn new(
-        query: &str,
-        references: Vec<String>,
+        tokens: &[token::LlamaToken],
         threads: i32,
         max_token: i32,
-        prompt_template: &str,
         model: &'a model::LlamaModel,
         backend: &'a llama_backend::LlamaBackend,
     ) -> Self {
-        let mut vars = collections::HashMap::new();
-        vars.insert("context".to_string(), references.join(","));
-        vars.insert("query".to_string(), query.to_string());
-
-        let prompt = strfmt::strfmt(prompt_template, &vars).unwrap();
-        log::debug!("Prompt is: {prompt}");
-
-        let token_list = model
-            .str_to_token(&prompt, model::AddBos::Always)
-            .expect("Failed to tokenize prompt...");
-
-        let prompt_len = token_list.len();
+        let prompt_len = tokens.len();
 
         if prompt_len > CONTEXT_LEN {
             panic!("Prompt length ({prompt_len}) exceeds model context length ({CONTEXT_LEN})");
@@ -98,11 +82,11 @@ impl<'a> AiQueryContext<'a> {
 
         let mut batch = llama_cpp_2::llama_batch::LlamaBatch::new(n_batch_needed, 1);
 
-        let last_index = (token_list.len() - 1) as i32;
+        let last_index = (tokens.len() - 1) as i32;
 
-        for (i, token) in token_list.into_iter().enumerate() {
+        for (i, token) in tokens.iter().enumerate() {
             batch
-                .add(token, i as i32, &[0], i as i32 == last_index)
+                .add(*token, i as i32, &[0], i as i32 == last_index)
                 .expect("Failed to add token...");
         }
 
@@ -114,15 +98,15 @@ impl<'a> AiQueryContext<'a> {
         ]);
 
         AiQueryContext {
+            batch,
             ctx,
             decoder: encoding_rs::UTF_8.new_decoder(),
-            n_cur: prompt_len as i32,
             generated_len: 0,
             max_token: adjusted_max_token as i32,
             model,
-            batch,
-            sampler,
+            n_cur: prompt_len as i32,
             s_0: time::Instant::now(),
+            sampler,
         }
     }
 
@@ -212,17 +196,13 @@ mod tests {
         let backend = init_backend();
         let model = load_model("model/model.gguf", backend);
         let prompt =
-            "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>";
+            "<s>[INST]Using this information: [] answer the Question: Who was Albert Einstein?[/INST]</s>";
 
-        let query_context = AiQueryContext::new(
-            "Who was Albert Einstein",
-            vec![],
-            4,
-            30,
-            prompt,
-            &model,
-            backend,
-        );
+        let tokens = model
+            .str_to_token(prompt, model::AddBos::Always)
+            .expect("Failed to tokenize prompt...");
+
+        let query_context = AiQueryContext::new(&tokens, 4, 30, &model, backend);
         let i = process_tokens(query_context).await;
         assert_eq!(i, 30);
     }

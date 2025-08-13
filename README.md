@@ -3,7 +3,9 @@
 
 This repository contains all code to run a super simple AI LLM model - such as [Mistral 7b](https://mistral.ai/news/announcing-mistral-7b/); probably currently the 
 best model to run locally - for inference; it includes simple RAG functionalities. Most importantly it exposes metrics 
-about how long it took to create a response, as well as how long it took to generate the tokens.
+about how long it took to create a response, as well as how long it took to generate the tokens. A stripped down 
+[OpenAI API](https://platform.openai.com/docs/api-reference/introduction) like interface is available so other services
+like [aider](https://aider.chat/) or [Open WebUI](https://openwebui.com/) can be easily integrated with it.
 
 ![rusting llama being observed in mistral winds.](misc/inspecting_rusting_llama_in_mistral_wind.png)
 
@@ -34,7 +36,9 @@ You will need to download a model and embedding model:
 
   * This [mistral-7b-instruct-v0.2.Q4_K_M.gguf](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/tree/main) 
     model seems to give reasonable good results. Otherwise, give the 
-    [Phi-3.5-mini-instruct-Q4_K_S.gguf](https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/tree/main) a try.
+    [Phi-3.5-mini-instruct-Q4_K_S.gguf](https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/tree/main) a try. 
+    For resource constraint environments test with 
+    [tinyllama-1.1b-chat-v1.0.Q2_K.gguf](https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/tree/main).
   * This [bge-base-en-v1.5.Q8_0.gguf](https://huggingface.co/ChristianAzinn/bge-base-en-v1.5-gguf/tree/main) 
     embedding model seem to work as well.
 

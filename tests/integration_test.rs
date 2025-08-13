@@ -4,6 +4,9 @@ extern crate rusty_llm;
 mod tests {
     use actix_web::body::MessageBody;
     use actix_web::web;
+    use std::sync::Arc;
+    use std::time;
+    use tokio::sync::RwLock;
 
     macro_rules! test_query_request {
         ($name:ident, $($prompt:expr, $expected_status:expr, $expected_len:expr),+) => {
@@ -11,8 +14,8 @@ mod tests {
             async fn $name() {
                 $(
                     let mut kv_store = rusty_llm::knowledge::get_db();
-
-        let prompt = "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>".to_string();
+                    let cache = Arc::new(RwLock::new(rusty_llm::cache::TokenCache::new(time::Duration::from_secs(60))));
+                    let prompt = "<s>[INST]Using this information: {context} answer the Question: {query}[/INST]</s>".to_string();
                     rusty_llm::api::load_knowledge(std::path::Path::new("data/"), &mut kv_store).await;
                     let app = actix_web::test::init_service(
                         actix_web::App::new()
@@ -21,6 +24,7 @@ mod tests {
                                 threads: 4,
                                 prompt,
                             }))
+                            .app_data(web::Data::new(cache.clone()))
                             .app_data(web::Data::new(kv_store.clone()))
                             .service(rusty_llm::api::stream_response)
                     )
@@ -52,6 +56,9 @@ mod tests {
 
     #[actix_web::test]
     async fn test_if_observability_works_example() {
+        let cache = Arc::new(RwLock::new(rusty_llm::cache::TokenCache::new(
+            time::Duration::from_secs(60),
+        )));
         let kv_store = rusty_llm::knowledge::get_db();
 
         let prompt =
@@ -64,6 +71,7 @@ mod tests {
                     threads: 4,
                     prompt,
                 }))
+                .app_data(web::Data::new(cache.clone()))
                 .app_data(web::Data::new(kv_store.clone()))
                 .service(rusty_llm::api::stream_response)
                 .service(rusty_llm::api::metrics),
